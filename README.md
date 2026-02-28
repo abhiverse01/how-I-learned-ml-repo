@@ -22,7 +22,7 @@
 
 </p>
 
----
+ 
 
 # 🌐 Live Demo
 
@@ -47,7 +47,7 @@ No frameworks.
 No libraries.  
 Just engineering.
 
----
+ 
 
 # ✨ Core Features
 
@@ -59,7 +59,7 @@ Custom-built physics simulation for natural node positioning.
 - Smooth transitions  
 - Real-time simulation  
 
----
+ 
 
 ## 🎨 God Mode Canvas Rendering
 High-performance **HTML5 Canvas engine** featuring:
@@ -70,14 +70,14 @@ High-performance **HTML5 Canvas engine** featuring:
 - Animated link flows  
 - Smooth zoom & drag  
 
----
+ 
 
 ## 🧩 Extensible Knowledge Architecture
 Add new AI concepts instantly via a simple data object.
 
 No need to modify rendering logic.
 
----
+ 
 
 ## 🔗 Deep Linking
 Each node is directly addressable:
@@ -92,7 +92,7 @@ Each node is directly addressable:
 
 Perfect for sharing specific AI concepts.
 
----
+ 
 
 ## 🧭 Navigation History
 Full browser history support within the SPA:
@@ -101,7 +101,7 @@ Full browser history support within the SPA:
 - URL state persistence  
 - Shareable graph positions  
 
----
+ 
 
 ## 📱 Responsive & Accessible
 Modern glassmorphism UI designed for:
@@ -112,7 +112,7 @@ Modern glassmorphism UI designed for:
 
 Keyboard-first navigation is supported.
 
----
+ 
 
 # 🏗 Architecture
 
@@ -145,7 +145,7 @@ titanML/
 - Maximum performance  
 - Educational clarity  
 
----
+ 
 
 # ⚡ Quick Start
 
@@ -172,7 +172,7 @@ Or serve locally:
 python -m http.server
 ```
 
----
+ 
 
 # 🧠 Adding New AI Concepts
 
@@ -202,7 +202,7 @@ The engine automatically renders:
 * Its connections
 * Its physics interactions
 
----
+ 
 
 # 🎯 Roadmap
 
@@ -232,7 +232,7 @@ The engine automatically renders:
 * Multi-domain knowledge graphs
 * Research visualisation tools
 
----
+ 
 
 # 🤝 Contributing
 
@@ -253,19 +253,19 @@ Contributions are welcome.
 * Add performance optimisations
 * Create learning overlays
 
----
+ 
 
 # 🛠 Tech Stack
 
 | Layer        | Technology                   |
-| ------------ | ---------------------------- |
+|      |          - |
 | Engine       | Vanilla JavaScript (ES6+)    |
 | Rendering    | HTML5 Canvas                 |
 | Styling      | CSS Variables + Flexbox/Grid |
 | Architecture | Modular ES structure         |
 | Fonts        | Plus Jakarta Sans            |
 
----
+ 
 
 # 🧭 Vision
 
@@ -285,7 +285,7 @@ Future direction includes:
 * Curriculum visualizers
 * Concept evolution timelines
 
----
+ 
 
 # 👨‍💻 Creator
 
@@ -301,13 +301,13 @@ AI Engineer • Systems Thinker • Builder
 📧 Email
 [abhishek.aimarine@gmail.com](mailto:abhishek.aimarine@gmail.com)
 
----
+ 
 
 # 📄 License
 
 This project is licensed under the MIT License.
 
----
+ 
 
 <p align="center">
   <b>Built with precision, curiosity, and a deep respect for intelligence.</b>
