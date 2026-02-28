@@ -1,6 +1,6 @@
 /**
  * AI Knowledge Base - Extensible Data Structure
- * GOD MODE ENHANCED: Deeper content, more concepts, production code.
+ * GOD MODE ENHANCED: Deep technical details & production patterns.
  */
 
 // ==========================================
@@ -12,7 +12,7 @@ function createTerm(config) {
         name: config.name || '',
         fullName: config.fullName || config.name || '',
         category: config.category || 'general',
-        type: config.type || 'technique', // core, technique, infrastructure, application
+        type: config.type || 'technique',
         shortDesc: config.shortDesc || '',
         definition: config.definition || '',
         related: config.related || [],
@@ -27,66 +27,18 @@ function createTerm(config) {
 // CATEGORY DEFINITIONS
 // ==========================================
 const CategoryData = [
-    {
-        id: 'rag',
-        name: 'RAG',
-        fullName: 'Retrieval Augmented Generation',
-        color: '#0891b2',
-        description: 'Techniques for augmenting LLMs with external knowledge'
-    },
-    {
-        id: 'agentic',
-        name: 'Agentic AI',
-        fullName: 'Autonomous Agent Systems',
-        color: '#6366f1',
-        description: 'Autonomous AI systems that plan and execute tasks'
-    },
-    {
-        id: 'mcp',
-        name: 'MCP',
-        fullName: 'Model Context Protocol',
-        color: '#8b5cf6',
-        description: 'Protocol for connecting AI assistants to systems'
-    },
-    {
-        id: 'architecture',
-        name: 'Architecture',
-        fullName: 'Model Architecture',
-        color: '#f59e0b',
-        description: 'Fundamental neural network architectures'
-    },
-    {
-        id: 'training',
-        name: 'Training',
-        fullName: 'Training Methods',
-        color: '#10b981',
-        description: 'Methods for training and fine-tuning models'
-    },
-    {
-        id: 'prompting',
-        name: 'Prompting',
-        fullName: 'Prompt Engineering',
-        color: '#ec4899',
-        description: 'Techniques for effective model interaction'
-    },
-    {
-        id: 'infrastructure',
-        name: 'Infrastructure',
-        fullName: 'AI Infrastructure',
-        color: '#ef4444',
-        description: 'Systems and tools for AI deployment'
-    },
-    {
-        id: 'applications',
-        name: 'Applications',
-        fullName: 'AI Applications',
-        color: '#14b8a6',
-        description: 'Real-world AI implementations'
-    }
+    { id: 'rag', name: 'RAG', fullName: 'Retrieval Augmented Generation', color: '#0891b2', description: 'Techniques for augmenting LLMs with external knowledge' },
+    { id: 'agentic', name: 'Agentic AI', fullName: 'Autonomous Agent Systems', color: '#6366f1', description: 'Autonomous AI systems that plan and execute tasks' },
+    { id: 'mcp', name: 'MCP', fullName: 'Model Context Protocol', color: '#8b5cf6', description: 'Protocol for connecting AI assistants to systems' },
+    { id: 'architecture', name: 'Architecture', fullName: 'Model Architecture', color: '#f59e0b', description: 'Fundamental neural network architectures' },
+    { id: 'training', name: 'Training', fullName: 'Training Methods', color: '#10b981', description: 'Methods for training and fine-tuning models' },
+    { id: 'prompting', name: 'Prompting', fullName: 'Prompt Engineering', color: '#ec4899', description: 'Techniques for effective model interaction' },
+    { id: 'infrastructure', name: 'Infrastructure', fullName: 'AI Infrastructure', color: '#ef4444', description: 'Systems and tools for AI deployment' },
+    { id: 'applications', name: 'Applications', fullName: 'AI Applications', color: '#14b8a6', description: 'Real-world AI implementations' }
 ];
 
 // ==========================================
-// TERM DEFINITIONS
+// TERM DEFINITIONS (GOD MODE ENHANCED)
 // ==========================================
 const TermData = [
     // ========== RAG SECTION ==========
@@ -97,59 +49,96 @@ const TermData = [
         category: 'rag',
         type: 'core',
         shortDesc: 'Augmenting LLM responses with retrieved external knowledge',
-        definition: 'RAG (Retrieval Augmented Generation) bridges the gap between parametric knowledge (model weights) and non-parametric knowledge (external databases). It operates in three stages: 1) Retrieval: finding relevant documents using vector similarity or keyword search. 2) Augmentation: injecting context into the prompt. 3) Generation: synthesizing an answer grounded in the provided context. It reduces hallucinations and provides citations.',
-        related: ['vector-database', 'embeddings', 'chunking', 'reranking', 'hybrid-search'],
+        definition: `Retrieval Augmented Generation (RAG) is a hybrid architecture that combines the reasoning capabilities of Large Language Models (LLMs) with the factual accuracy of external knowledge bases. 
+
+**Mechanism:**
+1. **Retrieval**: A user query is converted into an embedding, and a vector store retrieves the top-k most similar document chunks.
+2. **Augmentation**: The retrieved chunks are injected into the LLM prompt as context.
+3. **Generation**: The LLM generates a response grounded in the provided context.
+
+**Why it matters:** It solves the "hallucination" problem by grounding answers in facts, allows access to up-to-date information without retraining, and provides source attribution for generated text.
+
+**Advanced Patterns:** 
+- **Hybrid Search**: Combining vector search (semantic) with BM25 (keyword) for better recall.
+- **Reranking**: Using a Cross-Encoder to re-order retrieved documents for precision.
+- **HyDE (Hypothetical Document Embeddings)**: Generating a hypothetical answer to search for similar docs.`,
+        related: ['vector-database', 'embeddings', 'hybrid-search', 'chunking', 'reranking'],
         tags: ['core', 'production', 'grounding'],
-        codeExample: `# Production RAG Pipeline with Hybrid Search
+        codeExample: `# Production RAG Pipeline with Hybrid Search & Reranking
 from langchain.retrievers import EnsembleRetriever
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.retrievers.document_compressors import CohereRerank
+from langchain_community.retrievers import BM25Retriever
 
-# 1. Hybrid Retrieval (Vector + Keyword)
+# 1. Prepare Retrievers
+# Vector Store (Semantic)
 vector_retriever = vectorstore.as_retriever(search_kwargs={"k": 10})
-bm25_retriever = BM25Retriever.from_documents(docs)
+
+# BM25 (Keyword/Lexical)
+bm25_retriever = BM25Retriever.from_documents(documents)
 bm25_retriever.k = 10
 
+# 2. Hybrid Search (Ensemble)
 ensemble_retriever = EnsembleRetriever(
     retrievers=[bm25_retriever, vector_retriever],
-    weights=[0.4, 0.6]
+    weights=[0.4, 0.6]  # Tune weights based on domain
 )
 
-# 2. Reranking for Precision
-compressor = CohereRerank()
+# 3. Reranking Step (Precision)
+# Uses a Cross-Encoder to score query+doc pairs simultaneously
+compressor = CohereRerank(model="rerank-english-v3.0")
 compression_retriever = ContextualCompressionRetriever(
     base_compressor=compressor,
     base_retriever=ensemble_retriever
 )
 
-# 3. Generate
-docs = compression_retriever.get_relevant_documents(query)
-response = llm.invoke(f"Context: {docs}\\nQuestion: {query}")`
+# 4. Final Generation
+docs = compression_retriever.invoke(query)
+context_text = "\\n".join([d.page_content for d in docs])
+prompt = f"Context: {context_text}\\nQuestion: {query}"
+response = llm.invoke(prompt)`
     },
     {
         id: 'vector-database',
         name: 'Vector Database',
         category: 'rag',
         type: 'infrastructure',
-        shortDesc: 'Optimized storage for high-dimensional vector similarity search',
-        definition: 'Vector databases are specialized systems for storing embedding vectors and performing Approximate Nearest Neighbor (ANN) search. Unlike traditional DBs, they optimize for cosine/euclidean similarity at scale. Key algorithms include HNSW (Hierarchical Navigable Small World) for speed and IVF (Inverted File Index) for memory efficiency. Examples: Pinecone (managed), Milvus (open-source), Weaviate (hybrid), Qdrant (Rust-based efficiency).',
-        related: ['embeddings', 'rag', 'hnsw'],
-        tags: ['infrastructure', 'storage', 'similarity-search'],
-        codeExample: `# Qdrant Setup with HNSW Config
-from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, HnswConfigDiff
+        shortDesc: 'Specialized DB for high-dimensional similarity search',
+        definition: `Vector Databases are optimized for storing, indexing, and querying high-dimensional vectors (embeddings). Unlike relational DBs optimized for exact matches, Vector DBs use **Approximate Nearest Neighbor (ANN)** algorithms to find "close enough" vectors efficiently.
 
-client = QdrantClient(":memory:")
+**Core Algorithms:**
+- **HNSW (Hierarchical Navigable Small World)**: Graph-based algorithm. Excellent query speed, high memory usage. Best for real-time search.
+- **IVF (Inverted File Index)**: Clustering-based. Faster index build, lower memory, but slightly lower recall.
+- **Product Quantization (PQ)**: Compresses vectors to save memory at the cost of accuracy.
+
+**Key Metrics:** 
+- **Recall**: Percentage of true nearest neighbors found.
+- **QPS (Queries Per Second)**: Throughput.
+- **Latency**: Time per query (P50, P99).`,
+        related: ['embeddings', 'rag', 'hnsw'],
+        tags: ['infrastructure', 'storage', 'ann'],
+        codeExample: `# Production Qdrant Setup with HNSW
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, VectorParams, HnswConfigDiff, OptimizersConfigDiff
+
+client = QdrantClient(":memory:") # Use host/port for production
+
+# Configure HNSW for high performance
+hnsw_config = HnswConfigDiff(
+    m=16,                # Number of edges per node (higher = better recall, more memory)
+    ef_construct=100,    # Search depth during indexing
+    full_scan_threshold=10000 # Threshold for brute force search
+)
 
 client.create_collection(
     collection_name="production_docs",
     vectors_config=VectorParams(
-        size=1536,
-        distance=Distance.COSINE,
-        hnsw_config=HnswConfigDiff(
-            m=16,             # Connections per node
-            ef_construct=100  # Construction search depth
-        )
+        size=1536,                 # OpenAI Embedding dimension
+        distance=Distance.COSINE,  # Or Euclidean / Dot Product
+        hnsw_config=hnsw_config
+    ),
+    optimizers_config=OptimizersConfigDiff(
+        indexing_threshold=2000    # Start indexing after 2k points
     )
 )`
     },
@@ -158,114 +147,181 @@ client.create_collection(
         name: 'Embeddings',
         category: 'rag',
         type: 'core',
-        shortDesc: 'Dense vector representations capturing semantic meaning',
-        definition: 'Embeddings map discrete inputs (text, images) into continuous high-dimensional vectors where distance correlates with semantic similarity. Modern embedding models (OpenAI text-embedding-3, Cohere, Voyage) are trained using contrastive learning (e.g., InfoNCE loss) to pull similar pairs together and push dissimilar ones apart. Dimensionality trade-offs: larger dimensions capture more nuance but increase storage/compute cost.',
-        related: ['vector-database', 'semantic-search', 'transformers'],
-        tags: ['fundamental', 'representations', 'semantic'],
-        codeExample: `# Embedding Generation & Similarity
+        shortDesc: 'Dense vectors capturing semantic meaning',
+        definition: `Embeddings are dense vector representations (lists of floating-point numbers) where the distance between vectors correlates with semantic similarity. They bridge unstructured text and mathematical operations.
+
+**How they are trained:**
+- **Contrastive Learning**: Models (like Sentence-BERT) are trained to pull similar sentences closer in vector space and push dissimilar ones apart using contrastive loss (e.g., InfoNCE).
+
+**Trade-offs:**
+- **Dimensions**: Higher dims (e.g., 1536) capture more nuance but cost more storage/compute. Lower dims (384) are faster but less precise.
+- **Domain Specificity**: Generic models (OpenAI, BGE) vs Domain specific (BioBERT, LegalBERT).`,
+        related: ['vector-database', 'rag'],
+        tags: ['fundamental', 'semantic', 'vector'],
+        codeExample: `# Comparing Embedding Models
 from openai import OpenAI
+from sentence_transformers import SentenceTransformer
 import numpy as np
 
+# 1. Proprietary API (OpenAI)
 client = OpenAI()
+def get_openai_embedding(text):
+    return client.embeddings.create(
+        input=[text], model="text-embedding-3-small"
+    ).data[0].embedding
 
-def get_embedding(text, model="text-embedding-3-small"):
-    text = text.replace("\\n", " ")
-    return client.embeddings.create(input=[text], model=model).data[0].embedding
+# 2. Open Source Local (BGE)
+local_model = SentenceTransformer('BAAI/bge-m3') # Supports 100+ languages
+def get_local_embedding(text):
+    return local_model.encode(text)
 
-def cosine_sim(a, b):
+# 3. Similarity Calculation
+def cosine_similarity(a, b):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
-vec1 = get_embedding("AI is transforming industries")
-vec2 = get_embedding("Machine learning changes business")
-print(f"Similarity: {cosine_sim(vec1, vec2):.3f}")`
+vec1 = get_local_embedding("AI is transforming industries")
+vec2 = get_local_embedding("Machine learning changes business")
+print(f"Semantic Similarity: {cosine_similarity(vec1, vec2):.4f}")`
     },
     {
         id: 'hybrid-search',
         name: 'Hybrid Search',
         category: 'rag',
         type: 'technique',
-        shortDesc: 'Combining vector similarity with keyword matching',
-        definition: 'Hybrid search merges the semantic understanding of vector search with the precise lexical matching of keyword search (BM25). Essential for domains with specific terminology (medical, legal). Reciprocal Rank Fusion (RRF) is the standard fusion algorithm, combining ranked lists without tuning score normalization.',
-        related: ['semantic-search', 'reranking'],
-        tags: ['retrieval', 'precision', 'production'],
-        codeExample: `# Reciprocal Rank Fusion Implementation
+        shortDesc: 'Combining vector and keyword search for robustness',
+        definition: `Hybrid Search fuses two retrieval paradigms:
+1. **Sparse Vectors (Keywords)**: BM25/TF-IDF. Great for exact matches (product codes, names). "Sparse" because most dimensions are zero.
+2. **Dense Vectors (Embeddings)**: Capture semantic meaning. Great for concepts and synonyms.
+
+**Fusion Algorithm:** 
+**Reciprocal Rank Fusion (RRF)** is the standard. It combines ranked lists without needing normalized scores. Formula: $RRF(d) = \\sum \\frac{1}{k + rank(d)}$`,
+        related: ['reranking', 'semantic-search'],
+        tags: ['retrieval', 'precision'],
+        codeExample: `# Reciprocal Rank Fusion (RRF) Implementation
 def reciprocal_rank_fusion(results_dict, k=60):
+    """
+    results_dict: {'bm25': [doc1, doc2], 'vector': [doc2, doc3]}
+    k: Constant to smooth rankings (standard is 60)
+    """
     fused_scores = {}
     
     for system, docs in results_dict.items():
         for rank, doc in enumerate(docs):
-            if doc.id not in fused_scores:
-                fused_scores[doc.id] = {"score": 0, "doc": doc}
-            fused_scores[doc.id]["score"] += 1 / (k + rank + 1)
+            doc_id = doc.metadata.get('id')
+            if doc_id not in fused_scores:
+                fused_scores[doc_id] = {"score": 0, "doc": doc}
+            
+            # RRF Formula
+            fused_scores[doc_id]["score"] += 1 / (k + rank + 1)
     
-    reranked = sorted(fused_scores.values(), key=lambda x: x["score"], reverse=True)
-    return [item["doc"] for item in reranked]`
+    # Sort by fused score
+    ranked = sorted(fused_scores.values(), key=lambda x: x["score"], reverse=True)
+    return [item["doc"] for item in ranked[:5]]`
     },
     {
         id: 'graph-rag',
         name: 'GraphRAG',
         category: 'rag',
         type: 'technique',
-        shortDesc: 'Using knowledge graphs for enhanced retrieval',
-        definition: 'GraphRAG leverages knowledge graphs instead of simple vector indexes to capture entity relationships. It excels at multi-hop reasoning (connecting facts across documents). By extracting entities and relationships, it builds a graph structure. Queries traverse the graph to find connected information, providing context that vector similarity often misses.',
+        shortDesc: 'Leveraging knowledge graphs for multi-hop reasoning',
+        definition: `GraphRAG uses Knowledge Graphs (KG) to structure information as entities and relationships, rather than just vector chunks. 
+
+**Why it's needed:** Vector RAG struggles with "multi-hop" queries (e.g., "Who is the CEO of the company that acquired GitHub?"). 
+- Vector RAG might retrieve chunks about "CEO" and "Acquisitions" separately.
+- GraphRAG traverses: GitHub -> acquired_by -> Microsoft -> CEO -> Satya Nadella.
+
+**Pipeline:**
+1. Extract Entities/Relations via LLM.
+2. Build Graph (Neo4j / NetworkX).
+3. Traverse graph for context.`,
         related: ['rag', 'knowledge-graph'],
-        tags: ['advanced', 'reasoning', 'knowledge-graph'],
-        codeExample: `# Conceptual GraphRAG using NetworkX
+        tags: ['advanced', 'reasoning', 'graph'],
+        codeExample: `# GraphRAG Concept (Entity Extraction + Traversal)
 import networkx as nx
 
-G = nx.Graph()
+# 1. Entity Extraction (Conceptual)
+entities = llm.invoke("Extract entities and relations from: 'Microsoft acquired GitHub.'")
+# Output: (Microsoft, acquired, GitHub)
 
-# Build Graph from Entities
-G.add_edge("Elon Musk", "Tesla", relation="CEO")
-G.add_edge("Tesla", "Austin", relation="HQ")
-G.add_edge("Elon Musk", "SpaceX", relation="Founder")
+# 2. Build Graph
+G = nx.DiGraph()
+G.add_edge("Microsoft", "GitHub", relation="acquired")
+G.add_edge("Satya Nadella", "Microsoft", relation="CEO")
 
-# Multi-hop Query
-def multi_hop_query(graph, start_entity, relationship, hops=2):
-    neighbors = list(nx.single_source_shortest_path_length(graph, start_entity, cutoff=hops))
-    return [n for n in neighbors if G.has_edge(start_entity, n)]
+# 3. Multi-hop Query
+def get_context(graph, entity, depth=2):
+    # Find connected entities within 'depth' hops
+    context_nodes = nx.single_source_shortest_path_length(graph, entity, cutoff=depth)
+    return list(context_nodes.keys())
 
-print(multi_hop_query(G, "Elon Musk", "founder"))`
+# Query: "Who is the CEO of the company that acquired GitHub?"
+# Traverse: GitHub --acquired--> Microsoft --CEO--> Satya Nadella
+print(get_context(G, "GitHub")) # ['GitHub', 'Microsoft', 'Satya Nadella']`
     },
     {
         id: 'chunking',
         name: 'Chunking',
         category: 'rag',
         type: 'technique',
-        shortDesc: 'Splitting documents for retrieval optimization',
-        definition: 'Chunking balances context preservation against retrieval precision. Too large = noise; too small = lost context. Strategies include RecursiveCharacterTextSplitter (hierarchical), SemanticChunking (sentence embeddings), and ParentDocumentRetriever (retrieving small chunks but returning parent document). Overlap prevents context loss at boundaries.',
+        shortDesc: 'Splitting documents for optimal retrieval',
+        definition: `Chunking is the process of breaking large documents into smaller pieces for embedding. It is a critical preprocessing step.
+
+**Strategies:**
+1. **Fixed Size**: Simple, but cuts sentences in half.
+2. **Recursive Character Splitter**: Tries to split on paragraphs, then sentences, then words.
+3. **Semantic Chunking**: Splits based on embedding similarity changes (slower but smarter).
+4. **Parent Document Retriever**: Indexes small chunks for search, but returns the larger parent document for context (best of both worlds).`,
         related: ['rag', 'embeddings'],
-        tags: ['preprocessing', 'documents'],
-        codeExample: `# Parent Document Retriever
+        tags: ['preprocessing', 'retrieval'],
+        codeExample: `# Parent Document Retriever (Advanced Chunking)
 from langchain.retrievers import ParentDocumentRetriever
 from langchain.storage import InMemoryStore
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
-# Store small chunks for search, return full parent docs
+# Small chunks for precise search
+child_splitter = RecursiveCharacterTextSplitter(chunk_size=400)
+# Large chunks for comprehensive context
+parent_splitter = RecursiveCharacterTextSplitter(chunk_size=2000)
+
 retriever = ParentDocumentRetriever(
-    vectorstore=vectorstore,
-    docstore=InMemoryStore(),
-    child_splitter=RecursiveCharacterTextSplitter(chunk_size=400),
-    parent_splitter=RecursiveCharacterTextSplitter(chunk_size=2000)
-)`
+    vectorstore=vectorstore,         # Indexes child chunks
+    docstore=InMemoryStore(),       # Stores parent docs
+    child_splitter=child_splitter,
+    parent_splitter=parent_splitter,
+)
+
+# When queried, it retrieves small chunks, maps them to parents, returns full parent docs.`
     },
     {
         id: 'reranking',
         name: 'Reranking',
         category: 'rag',
         type: 'technique',
-        shortDesc: 'Re-scoring documents for final relevance',
-        definition: 'Reranking uses a Cross-Encoder model that jointly encodes query+document pairs to produce a relevance score. Unlike Bi-Encoders (embeddings) which compute similarity in isolation, Cross-Encoders can attend to interactions between query and document terms. Much slower than vector search but significantly higher precision.',
+        shortDesc: 'Re-scoring retrieved documents for precision',
+        definition: `Reranking improves retrieval precision by using a heavier, more accurate model on the top-N results.
+
+**Bi-Encoder vs Cross-Encoder:**
+- **Bi-Encoder (Embeddings)**: Encodes query and doc separately. Fast, but less accurate.
+- **Cross-Encoder**: Encodes (query, doc) together. Slower, but captures fine-grained interactions (e.g., negation, ordering).
+
+**Pipeline:** 
+Vector Search (Retrieve 100) -> Cross-Encoder (Rerank to Top 5).`,
         related: ['rag', 'hybrid-search'],
         tags: ['retrieval', 'precision'],
         codeExample: `# Cross-Encoder Reranking
 from sentence_transformers import CrossEncoder
 
+# Load a pre-trained cross-encoder
 model = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
 
 def rerank(query, docs, top_k=5):
+    # Create pairs of (query, document_text)
     pairs = [[query, doc.page_content] for doc in docs]
+    
+    # Predict scores (this is the heavy computation)
     scores = model.predict(pairs)
     
+    # Sort by score
     ranked = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
     return [doc for doc, score in ranked[:top_k]]`
     },
@@ -276,125 +332,176 @@ def rerank(query, docs, top_k=5):
         name: 'Agentic AI',
         category: 'agentic',
         type: 'core',
-        shortDesc: 'Autonomous systems pursuing goals through iterative actions',
-        definition: 'Agentic AI transitions LLMs from passive responders to active goal-seekers. Key loop: Observe -> Think -> Act -> Reflect. Agents utilize tools, maintain memory, and plan using ReAct (Reasoning + Acting). Challenges include loop prevention and reliable error recovery.',
-        related: ['tool-use', 'planning', 'memory-agents', 'multi-agent'],
+        shortDesc: 'Autonomous systems pursuing goals iteratively',
+        definition: `Agentic AI shifts LLMs from passive responders to active goal-seekers. An agent operates in a loop: **Observe -> Think -> Act -> Reflect**.
+
+**Core Components:**
+1. **Planner**: Decomposes goals into steps.
+2. **Tool Executor**: Calls external APIs.
+3. **Memory**: Stores past actions and observations.
+4. **Critic**: Evaluates if the goal is met.
+
+**Pattern - ReAct (Reasoning + Acting):** The model outputs a "Thought" before every "Action", ensuring reasoning traces are explicit.`,
+        related: ['tool-use', 'planning', 'multi-agent'],
         tags: ['core', 'autonomous'],
-        codeExample: `# Core ReAct Loop
-def run_agent(query, llm, tools):
-    thought_history = []
-    for _ in range(10): # Max steps
-        response = llm.invoke(f"""
-        Query: {query}
-        History: {thought_history}
-        Think step-by-step. Available tools: {tools}
-        Format: Thought: ... Action: tool_name(args)
-        """)
+        codeExample: `# ReAct Agent Loop Implementation
+def react_agent(query, llm, tools, max_steps=10):
+    history = ""
+    for step in range(max_steps):
+        # 1. Prompt for Thought/Action
+        prompt = f"""
+        Question: {query}
+        History: {history}
+        Think step-by-step. Use tools if needed.
+        Format: 
+        Thought: [Your reasoning]
+        Action: tool_name[input]
+        """
         
-        if "Final Answer:" in response:
-            return parse_final_answer(response)
+        response = llm.invoke(prompt)
+        history += f"\\n{response}"
         
-        action = parse_action(response)
-        observation = execute_tool(action)
-        thought_history.append(f"Thought: {response}\\nObservation: {observation}")`
+        # 2. Parse Action
+        if "Action:" not in response:
+            return response # Final Answer
+        
+        action = parse_action(response) # e.g., "search['AI news']"
+        
+        # 3. Execute Tool
+        observation = execute_tool(action, tools)
+        history += f"\\nObservation: {observation}"`
     },
     {
         id: 'tool-use',
         name: 'Tool Use',
         category: 'agentic',
         type: 'core',
-        shortDesc: 'Enabling LLMs to execute external functions',
-        definition: 'Tool Use extends LLMs beyond text generation. The model generates structured outputs (JSON) matching a defined schema. The runtime environment parses these outputs and executes actual code (API calls, DB queries). Reliability requires strict schema validation and error handling.',
+        shortDesc: 'Extending LLMs with external functions',
+        definition: `Tool Use allows an LLM to execute code by generating structured JSON arguments.
+
+**Mechanism:**
+1. **Schema Definition**: Define tools with names, descriptions, and JSON schemas for arguments.
+2. **Binding**: The tools are "bound" to the LLM request.
+3. **Parsing**: The LLM outputs a tool call (JSON).
+4. **Execution**: The runtime executes the code.
+5. **Loop Back**: The result is fed back to the LLM.`,
         related: ['agentic-ai', 'mcp'],
         tags: ['integration', 'actions'],
-        codeExample: `# Structured Tool Output
-from pydantic import BaseModel
+        codeExample: `# Structured Tool with Pydantic Schema
+from pydantic import BaseModel, Field
 from langchain.tools import tool
 
 class CalculatorInput(BaseModel):
-    a: int
-    b: int
+    a: int = Field(description="The first number")
+    b: int = Field(description="The second number")
 
 @tool("multiply", args_schema=CalculatorInput)
 def multiply(a: int, b: int) -> int:
-    """Multiplies a and b."""
+    """Multiplies two integers."""
     return a * b
 
-# Binding tools to LLM
-llm_with_tools = llm.bind_tools([multiply])`
+# Bind to LLM
+llm_with_tools = llm.bind_tools([multiply])
+
+# Invocation
+response = llm_with_tools.invoke("What is 5 times 7?")
+# Model outputs: tool_call(name='multiply', args={'a': 5, 'b': 7})`
     },
     {
         id: 'multi-agent',
         name: 'Multi-Agent Systems',
         category: 'agentic',
         type: 'technique',
-        shortDesc: 'Collaborative AI agents with specialized roles',
-        definition: 'Multi-agent systems distribute tasks among specialized agents (e.g., Researcher, Writer, Critic). Communication patterns: Hierarchical (Manager-Worker), Sequential (Assembly Line), or Joint Chat (Round Table). Frameworks like CrewAI and LangGraph define the communication graph and state management.',
+        shortDesc: 'Specialized agents collaborating on tasks',
+        definition: `Multi-Agent Systems coordinate multiple specialized agents to solve complex problems.
+
+**Patterns:**
+- **Hierarchical**: A "Manager" agent assigns tasks to "Worker" agents.
+- **Sequential**: Output of Agent A is input to Agent B (Assembly line).
+- **Joint Chat**: Agents share a conversation history (Round table).
+
+**Why needed:** Specialization. A single agent cannot be an expert at coding, writing, and finance analysis simultaneously.`,
         related: ['agentic-ai', 'planning'],
-        tags: ['collaboration', 'complex-systems'],
+        tags: ['collaboration', 'complex'],
         codeExample: `# CrewAI Hierarchical Process
 from crewai import Crew, Agent, Task, Process
 
-manager = Agent(role="Project Manager", ...)
-researcher = Agent(role="Researcher", tools=[search_tool], ...)
-writer = Agent(role="Technical Writer", ...)
+# Define Agents
+manager = Agent(role="Manager", goal="Delegate tasks", ...)
+researcher = Agent(role="Researcher", goal="Find info", tools=[search_tool], ...)
+writer = Agent(role="Writer", goal="Write article", ...)
 
+# Define Crew
 crew = Crew(
     agents=[researcher, writer],
     manager_agent=manager,
-    process=Process.hierarchical,
-    tasks=[...]
-)`
+    process=Process.hierarchical, # Manager delegates
+    tasks=[Task(description="Write about AI")]
+)
+
+result = crew.kickoff()`
     },
     {
         id: 'planning',
         name: 'Planning',
         category: 'agentic',
         type: 'technique',
-        shortDesc: 'Decomposing complex goals into sub-tasks',
-        definition: 'Planning agents break high-level goals into executable steps. Approaches: Plan-and-Solve (generate plan first, then execute), ReWOO (Reasoning WithOut Observation), and LATS (Language Agent Tree Search). Effective planning requires backtracking when steps fail.',
+        shortDesc: 'Decomposing goals into actionable steps',
+        definition: `Planning agents decompose a vague goal ("Book a flight") into a graph of dependencies.
+
+**Techniques:**
+- **Plan-and-Solve**: Generate the full plan upfront, then execute sequentially.
+- **ReWOO (Reasoning WithOut Observation)**: Planner generates plan, Worker executes without intermediate LLM calls (cheaper/faster).
+- **LATS (Language Agent Tree Search)**: Uses reflection and search (like MCTS) to explore plan paths.`,
         related: ['agentic-ai', 'chain-of-thought'],
         tags: ['reasoning', 'decomposition'],
         codeExample: `# Plan-and-Execute Pattern
 def plan_and_execute(goal, llm, executor):
-    # 1. Generate Plan
-    plan = llm.invoke(f"Break down goal: {goal} into steps")
-    steps = parse_plan(plan)
+    # 1. Planner
+    plan_prompt = f"Break down goal into steps: {goal}"
+    plan = llm.invoke(plan_prompt)
+    steps = parse_plan(plan) # Returns list of strings
     
+    # 2. Executor
     for step in steps:
-        for attempt in range(3):
+        for attempt in range(3): # Retry logic
             result = executor(step)
-            if result.success:
-                break
-            step = llm.invoke(f"Step failed: {step}. Revise step given error: {result.error}")
+            if result.success: break
+            # Replan on failure
+            step = llm.invoke(f"Step failed: {step}. Error: {result.error}. Revise.")
         else:
-            raise Exception("Max retries reached")`
+            raise Exception(f"Failed at step: {step}")
+    return "Goal Completed"`
     },
     {
         id: 'reflection',
         name: 'Reflection',
         category: 'agentic',
         type: 'technique',
-        shortDesc: 'Self-critique to improve future performance',
-        definition: 'Reflection allows agents to analyze their own outputs, identify errors, and generate better strategies. Pattern: Generate -> Critique -> Refine. Reflexion framework stores these critiques in long-term memory to guide future attempts, significantly boosting performance on coding/math tasks.',
+        shortDesc: 'Self-critique for self-improvement',
+        definition: `Reflection allows agents to learn from mistakes within a single session. After executing a task, the agent generates a "reflection" on what went wrong, stored in memory to guide future attempts.
+
+**Key Framework:** **Reflexion** (Shinn et al.). Uses a "trial" memory of (Action, Observation, Reflection).`,
         related: ['agentic-ai', 'planning'],
         tags: ['self-improvement', 'reasoning'],
         codeExample: `# Reflexion Pattern
-def reflect_and_retry(task, llm, max_retries=3):
-    history = []
+def reflect_and_solve(task, llm, max_retries=3):
+    reflections = []
     
     for i in range(max_retries):
-        # Generate
-        solution = llm.invoke(f"Task: {task}. History: {history}")
+        # 1. Generate Solution
+        prompt = f"Task: {task}\\nPast Reflections: {reflections}"
+        solution = llm.invoke(prompt)
         
-        # Evaluate (e.g., unit tests)
-        is_correct, feedback = evaluate(solution)
+        # 2. Evaluate
+        is_correct, feedback = execute_and_test(solution)
         
         if is_correct: return solution
         
-        # Reflect
-        reflection = llm.invoke(f"Failed attempt: {solution}\\nFeedback: {feedback}\\nReflect on why it failed.")
-        history.append(reflection)
+        # 3. Reflect
+        reflection_prompt = f"Solution failed.\\nFeedback: {feedback}\\nReflect on why."
+        reflection = llm.invoke(reflection_prompt)
+        reflections.append(reflection)
     
     return None`
     },
@@ -406,50 +513,58 @@ def reflect_and_retry(task, llm, max_retries=3):
         fullName: 'Model Context Protocol',
         category: 'mcp',
         type: 'core',
-        shortDesc: 'Universal protocol for AI context integration',
-        definition: 'MCP (Model Context Protocol) is an open standard (by Anthropic) for connecting AI assistants to systems. It decouples AI models from specific data sources using a Client-Server architecture. Servers expose Resources (read data), Tools (functions), and Prompts (templates). Clients (e.g., Claude Desktop) discover and invoke these capabilities dynamically.',
+        shortDesc: 'Universal standard for AI context integration',
+        definition: `MCP (Anthropic) is an open protocol to standardize how AI assistants connect to data sources. It decouples the AI model from integrations.
+
+**Architecture:**
+- **MCP Host**: The AI application (e.g., Claude Desktop).
+- **MCP Client**: Part of the host, speaks the protocol.
+- **MCP Server**: A lightweight program exposing resources/tools (e.g., a Postgres server).
+
+**Core Primitives:**
+1. **Resources**: Read-only data (files, DB rows).
+2. **Tools**: Functions the model can call.
+3. **Prompts**: Templates users can invoke.`,
         related: ['tool-use', 'mcp-resources', 'mcp-tools'],
         tags: ['protocol', 'standard', 'interoperability'],
-        codeExample: `# MCP Server Implementation
+        codeExample: `# Minimal MCP Server
 from mcp.server import Server
-from mcp.types import Tool, Resource
+from mcp.types import Tool, TextContent
 
-app = Server("my-mcp-server")
+app = Server("example-server")
 
 @app.list_tools()
 def list_tools():
-    return [
-        Tool(name="search_docs", description="Search documentation", input_schema={...})
-    ]
+    return [Tool(name="echo", description="Echoes input", input_schema={...})]
 
 @app.call_tool()
-def call_tool(name, arguments):
-    if name == "search_docs":
-        return search(arguments["query"])
+async def call_tool(name, arguments):
+    if name == "echo":
+        return [TextContent(type="text", text=arguments.get("message"))]
 
-# Run via: npx @anthropic-ai/mcp run server.py`
+# Run: npx @anthropic-ai/mcp run server.py`
     },
     {
         id: 'mcp-tools',
         name: 'MCP Tools',
         category: 'mcp',
         type: 'technique',
-        shortDesc: 'Executable functions exposed via MCP',
-        definition: 'MCP Tools are stateful functions exposed by an MCP server. Unlike simple function calling, tools in MCP are discoverable via list_tools and have standardized JSON Schemas. Support for server-to-server composition allows chaining tool calls.',
+        shortDesc: 'Functions exposed via MCP',
+        definition: `MCP Tools are stateful, discoverable functions. Unlike raw JSON function calling, MCP Tools support:
+- **Schema Validation**: Automatic validation of arguments.
+- **Discovery**: Clients list available tools dynamically.
+- **Annotations**: Human-readable descriptions for the LLM.`,
         related: ['mcp', 'tool-use'],
         tags: ['functions', 'execution'],
         codeExample: `# Defining an MCP Tool
-from mcp.server import Server
-
-server = Server("data-tools")
-
 @server.tool()
 def query_database(sql: str) -> str:
-    \"\"\"Execute SQL safely. Read-only access.\"\"\"
-    # Implementation details
-    return execute_readonly_sql(sql)
-
-# The schema is auto-generated for the client`
+    \"\"\"
+    Executes a read-only SQL query.
+    Args:
+        sql: The SQL query string.
+    \"\"\"
+    return execute_sql_safely(sql)`
     },
     {
         id: 'mcp-resources',
@@ -457,16 +572,13 @@ def query_database(sql: str) -> str:
         category: 'mcp',
         type: 'technique',
         shortDesc: 'URI-addressable data via MCP',
-        definition: 'MCP Resources provide read-only access to data via URI templates. Clients can read specific resources or list available resources. Useful for exposing files, database tables, or API endpoints without full tool complexity.',
+        definition: `MCP Resources provide a file-like interface to data. Accessible via URIs (e.g., `file:///logs/app.log` or `postgres://db/users`). Supports listing and reading.`,
         related: ['mcp', 'context-window'],
         tags: ['data', 'read-only'],
         codeExample: `# MCP Resource Template
-@server.resource("docs://{doc_id}")
-def get_doc(doc_id: str) -> str:
-    return db.find_document(doc_id)
-
-# Client reads via URI
-content = await session.read_resource("docs/12345")`
+@server.resource("logs://{log_id}")
+def read_log(log_id: str) -> str:
+    return open(f"/logs/{log_id}.log").read()`
     },
 
     // ========== ARCHITECTURE SECTION ==========
@@ -475,23 +587,35 @@ content = await session.read_resource("docs/12345")`
         name: 'Transformers',
         category: 'architecture',
         type: 'core',
-        shortDesc: 'Attention-based neural networks dominating NLP',
-        definition: 'Transformers replaced RNNs using self-attention, allowing parallel processing of sequences. Key innovation: Positional Encodings inject sequence order. The architecture consists of Encoder (BERT) and Decoder (GPT) stacks. Scaled Dot-Product Attention computes compatibility between all tokens.',
-        related: ['attention-mechanism', 'llm', 'self-attention'],
+        shortDesc: 'The architecture behind modern AI',
+        definition: `Transformers rely on **Self-Attention** to process sequences in parallel, replacing recurrence (RNNs).
+
+**Key Equations:**
+- **Attention**: $Attention(Q, K, V) = softmax(\\frac{QK^T}{\\sqrt{d_k}})V$
+- **LayerNorm**: Stabilizes training by normalizing across features.
+- **Positional Encoding**: Injects order info since attention is permutation-invariant.`,
+        related: ['attention-mechanism', 'llm'],
         tags: ['fundamental', 'deep-learning'],
         codeExample: `# Minimal Transformer Block
+import torch.nn as nn
+
 class TransformerBlock(nn.Module):
-    def __init__(self, d_model, n_heads, dropout=0.1):
+    def __init__(self, d_model, n_heads):
         super().__init__()
-        self.att = nn.MultiheadAttention(d_model, n_heads)
+        self.attn = nn.MultiheadAttention(d_model, n_heads)
         self.ff = nn.Sequential(nn.Linear(d_model, 4*d_model), nn.ReLU(), nn.Linear(4*d_model, d_model))
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
-        
+    
     def forward(self, x):
-        attn_out, _ = self.att(self.norm1(x), self.norm1(x), self.norm1(x))
+        # Pre-LN architecture (more stable)
+        norm_x = self.norm1(x)
+        attn_out, _ = self.attn(norm_x, norm_x, norm_x)
         x = x + attn_out
-        x = x + self.ff(self.norm2(x))
+        
+        norm_x = self.norm2(x)
+        ff_out = self.ff(norm_x)
+        x = x + ff_out
         return x`
     },
     {
@@ -499,28 +623,36 @@ class TransformerBlock(nn.Module):
         name: 'Mixture of Experts',
         category: 'architecture',
         type: 'technique',
-        shortDesc: 'Sparse activation for massive scaling',
-        definition: 'MoE (Mixture of Experts) scales parameter count without linear compute cost. A Gating Network routes input tokens to a subset of Expert layers. E.g., GPT-4 and Mixtral use 8 experts, routing to 2 per token. This achieves 8x parameters at ~2x compute cost.',
+        shortDesc: 'Sparse activation for efficient scaling',
+        definition: `Mixture of Experts (MoE) scales model capacity without proportional compute cost.
+
+**Mechanism:**
+1. **Experts**: Specialized sub-networks (e.g., 8 Feed-Forward layers).
+2. **Router/Gating Network**: Decides which expert to use for each token.
+3. **Top-k Routing**: Usually k=1 or 2 experts activated per token.
+
+**Trade-off:** High VRAM needed to hold all experts, but low FLOPs per token.`,
         related: ['transformers', 'inference'],
         tags: ['scaling', 'efficiency'],
         codeExample: `# Sparse MoE Layer
 class MoELayer(nn.Module):
     def __init__(self, d_model, num_experts=8, top_k=2):
         super().__init__()
-        self.experts = nn.ModuleList([Expert(d_model) for _ in range(num_experts)])
+        self.experts = nn.ModuleList([FeedForward(d_model) for _ in range(num_experts)])
         self.gate = nn.Linear(d_model, num_experts)
         self.top_k = top_k
 
     def forward(self, x):
-        gate_logits = self.gate(x)
+        gate_logits = self.gate(x) # [Batch, Seq, Num_Experts]
         weights, indices = torch.topk(gate_logits, self.top_k, dim=-1)
         weights = torch.softmax(weights, dim=-1)
         
-        # Sparse computation
         output = torch.zeros_like(x)
         for i in range(self.top_k):
-            expert_idx = indices[:, :, i]
-            expert_weight = weights[:, :, i].unsqueeze(-1)
+            expert_idx = indices[..., i]  # Selected expert index
+            expert_weight = weights[..., i].unsqueeze(-1)
+            
+            # Route tokens to experts (simplified)
             expert_out = self.experts[expert_idx](x)
             output += expert_out * expert_weight
         return output`
@@ -530,19 +662,23 @@ class MoELayer(nn.Module):
         name: 'Flash Attention',
         category: 'architecture',
         type: 'technique',
-        shortDesc: 'IO-aware exact attention algorithm',
-        definition: 'Flash Attention optimizes attention by minimizing HBM (High Bandwidth Memory) access. It computes attention block-by-block on SRAM, avoiding the massive O(N^2) intermediate matrix. It is exact (not approximate) and enables 4x longer context training.',
+        shortDesc: 'Memory-efficient exact attention',
+        definition: `Flash Attention is an IO-aware algorithm that computes exact attention in $O(N)$ memory instead of $O(N^2)$.
+
+**Key Insight:** Attention materialization dominates HBM (High Bandwidth Memory) access. Flash Attention computes attention block-by-block on fast SRAM, never writing the huge $N \\times N$ matrix to HBM.
+
+**Impact:** Enables 4-16x longer context lengths. Now standard in PyTorch 2.0+ and HuggingFace.`,
         related: ['attention-mechanism', 'context-window'],
-        tags: ['optimization', 'performance'],
-        codeExample: `# Flash Attention usage in PyTorch 2.0+
-# Enabled by default with scaled_dot_product_attention
+        tags: ['optimization', 'memory'],
+        codeExample: `# Usage in PyTorch 2.0+
 import torch.nn.functional as F
 
+# Automatically uses Flash Attention if on CUDA
 F.scaled_dot_product_attention(q, k, v, is_causal=True)
 
-# Or explicitly via xformers/sdpa backends
-with torch.backends.cuda.sdp_kernel(enable_flash=True):
-    out = F.scaled_dot_product_attention(q, k, v)`
+# Explicitly control backend
+with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False):
+    attn_output = F.scaled_dot_product_attention(q, k, v)`
     },
     {
         id: 'llm',
@@ -550,43 +686,58 @@ with torch.backends.cuda.sdp_kernel(enable_flash=True):
         fullName: 'Large Language Model',
         category: 'architecture',
         type: 'core',
-        shortDesc: 'Foundation models trained on massive text corpora',
-        definition: 'LLMs are transformer-based models pre-trained on trillions of tokens to predict the next token. Scaling laws dictate performance improves predictably with parameters, data, and compute. Architecture choice (Decoder-only) favors generation. Key sizes: 7B (edge), 70B (enterprise), 1T+ (frontier).',
-        related: ['transformers', 'tokenization', 'inference'],
+        shortDesc: 'Foundation models trained on massive text',
+        definition: `LLMs are decoder-only Transformers trained on trillions of tokens via Next Token Prediction.
+
+**Scaling Laws:** Performance ($L$) follows a power law with compute ($C$), data ($D$), and parameters ($N$).
+$L(N) = (N_c/N)^{\\alpha_N}$.
+
+**Architectural Nuances:**
+- **RoPE (Rotary Positional Embeddings)**: Modern positional encoding (better length extrapolation).
+- **SwiGLU**: Activation function replacing ReLU.
+- **GQA (Grouped Query Attention)**: Speeds up inference by sharing KV heads.`,
+        related: ['transformers', 'tokenization'],
         tags: ['foundation-model', 'generation'],
         codeExample: `# LLM Generation Config
 from transformers import GenerationConfig
 
-gen_config = GenerationConfig(
+# Configuring decoding strategy
+config = GenerationConfig(
     max_new_tokens=256,
     temperature=0.7,
-    top_p=0.95,
-    top_k=50,
-    repetition_penalty=1.1,
+    top_p=0.95,         # Nucleus Sampling
+    top_k=50,           # Top-K filtering
+    repetition_penalty=1.1, # Prevent loops
     do_sample=True
 )
 
-output = model.generate(**inputs, generation_config=gen_config)`
+output = model.generate(**inputs, generation_config=config)`
     },
     {
         id: 'tokenization',
         name: 'Tokenization',
         category: 'architecture',
         type: 'technique',
-        shortDesc: 'Subword encoding for text representation',
-        definition: 'Tokenization converts raw text to integer IDs. BPE (Byte Pair Encoding) merges frequent character pairs iteratively. It balances vocabulary size against sequence length. Special tokens (<BOS>, <EOS>, <PAD>) handle sequence boundaries. Tokenizer choice affects model behavior (e.g., code efficiency).',
+        shortDesc: 'Subword encoding for text',
+        definition: `Tokenization converts text to integer IDs using subword algorithms.
+
+**Algorithms:**
+- **BPE (Byte Pair Encoding)**: Merges frequent byte pairs. Used by GPT, Llama.
+- **WordPiece**: Used by BERT. Uses `##` prefix for subwords.
+- **Unigram**: Used by SentencePiece/T5. Probabilistic.
+
+**Why not words?** Vocabulary size explodes. Why not chars? Context length explodes. Subwords are the sweet spot.`,
         related: ['llm', 'embeddings'],
         tags: ['preprocessing', 'encoding'],
-        codeExample: `# Tiktoken usage
+        codeExample: `# Tiktoken (OpenAI's BPE)
 import tiktoken
-enc = tiktoken.get_encoding("cl100k_base")
 
-text = "Hello world"
-ids = enc.encode(text)
-decoded = enc.decode(ids)
+enc = tiktoken.get_encoding("cl100k_base") # For GPT-4
+ids = enc.encode("Hello World")
+text = enc.decode(ids)
 
-# Handling special tokens
-ids_with_special = enc.encode(text, allowed_special="all")`
+# Special token handling
+ids = enc.encode("Hello<|endoftext|>", allowed_special="all")`
     },
 
     // ========== TRAINING SECTION ==========
@@ -595,51 +746,51 @@ ids_with_special = enc.encode(text, allowed_special="all")`
         name: 'Pre-training',
         category: 'training',
         type: 'core',
-        shortDesc: 'Self-supervised learning on massive datasets',
-        definition: 'Pre-training teaches general knowledge via Next Token Prediction (NTP). Compute-optimal training (Chinchilla scaling) balances model size and data. Requires distributed training frameworks (Megatron-LM, DeepSpeed). Gradients are accumulated across thousands of GPUs with ZeRO optimization.',
+        shortDesc: 'Self-supervised learning on massive data',
+        definition: `Pre-training builds foundational knowledge via **Next Token Prediction (NTP)**.
+
+**Objective:** Maximize $\\sum \\log P(x_t | x_{<t})$.
+
+**Compute Optimal (Chinchilla):** For a given compute budget, model size and data tokens should scale equally. Chinchilla showed many models were undertrained (too big, too little data).`,
         related: ['llm', 'fine-tuning'],
         tags: ['training', 'foundation'],
-        codeExample: `# Distributed Training Loop (Conceptual)
+        codeExample: `# Distributed Training (Conceptual)
 import torch.distributed as dist
 
+# ZeRO Stage 3: Shards params, grads, and optimizer states
+optimizer = DeepSpeedZeROOffload(optimizer)
+        
 def train_step(batch, model, optimizer):
     with torch.autocast("cuda"):
         loss = model(batch).loss
-    
     loss.backward()
-    
-    # Gradient clipping to prevent explosion
     torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-    
     optimizer.step()
-    optimizer.zero_grad()
-    
-    return loss.item()`
+    optimizer.zero_grad()`
     },
     {
         id: 'fine-tuning',
         name: 'Fine-tuning',
         category: 'training',
         type: 'technique',
-        shortDesc: 'Adapting pre-trained weights to tasks',
-        definition: 'Fine-tuning shifts model distribution from general to specific. Full fine-tuning updates all weights (compute-intensive). Parameter-Efficient Fine-Tuning (PEFT) updates <1% weights via Adapters, LoRA, or Prefix Tuning, preserving base knowledge.',
+        shortDesc: 'Adapting models to tasks',
+        definition: `Fine-tuning shifts the model distribution from generic pre-training data to specific tasks.
+
+**Types:**
+- **SFT (Supervised Fine-Tuning)**: Train on instruction-response pairs.
+- **RLHF**: Align with human preferences.
+- **PEFT**: Parameter-efficient tuning (LoRA, Adapters).`,
         related: ['lora', 'qlora'],
         tags: ['adaptation', 'specialization'],
-        codeExample: `# Fine-tuning Loop with Evaluation
-def train_epoch(model, train_loader, val_loader, optimizer, epochs):
-    for epoch in range(epochs):
-        model.train()
-        for batch in train_loader:
-            loss = model(**batch).loss
-            loss.backward()
-            optimizer.step()
-        
-        # Validation
-        model.eval()
-        with torch.no_grad():
-            val_loss = sum(model(**b).loss for b in val_loader)
-        
-        print(f"Epoch {epoch}: Val Loss {val_loss}")`
+        codeExample: `# SFT Loop
+def train_sft(model, train_loader, optimizer):
+    model.train()
+    for batch in train_loader:
+        # batch = input_ids, labels (shifted by 1)
+        loss = model(**batch).loss
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()`
     },
     {
         id: 'lora',
@@ -648,23 +799,29 @@ def train_epoch(model, train_loader, val_loader, optimizer, epochs):
         category: 'training',
         type: 'technique',
         shortDesc: 'Efficient fine-tuning via low-rank updates',
-        definition: 'LoRA freezes pre-trained weights and injects trainable rank decomposition matrices into each layer. For a weight matrix W, LoRA adds BA where B and A are low-rank. This allows training multiple lightweight adapters per base model, sharing the massive base weights.',
+        definition: `LoRA injects trainable rank decomposition matrices into Transformer layers.
+For a weight matrix $W$, we add $\\Delta W = BA$. $B \\in \\mathbb{R}^{d \\times r}, A \\in \\mathbb{R}^{r \\times k}$.
+Only $B$ and $A$ are updated.
+
+**Key Hyperparameters:**
+- **Rank (r)**: Usually 8-64. Higher = more capacity.
+- **Alpha ($\\alpha$)**: Scaling factor. Effective learning rate scales with $\\alpha/r$.
+- **Target Modules**: Usually query/value projections.`,
         related: ['fine-tuning', 'qlora'],
         tags: ['efficient', 'peft'],
-        codeExample: `# LoRA Fine-tuning
+        codeExample: `# LoRA Config
 from peft import LoraConfig, get_peft_model
 
 config = LoraConfig(
-    r=16,               # Rank
-    lora_alpha=32,      # Scaling factor
-    target_modules=["q_proj", "v_proj"],
+    r=16,
+    lora_alpha=32,       # Scale = alpha/r = 2
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
     lora_dropout=0.05,
     bias="none"
 )
 
 model = get_peft_model(base_model, config)
-
-# Trainable params: 4M || all params: 7B || trainable%: 0.06%`
+# Trainable params: 0.1% of total`
     },
     {
         id: 'rlhf',
@@ -672,24 +829,26 @@ model = get_peft_model(base_model, config)
         fullName: 'Reinforcement Learning from Human Feedback',
         category: 'training',
         type: 'technique',
-        shortDesc: 'Aligning models with human preferences',
-        definition: 'RLHF optimizes models for helpfulness/harmlessness. Steps: 1) Collect preference comparisons (A vs B). 2) Train Reward Model (RM) to predict preferences. 3) Optimize policy (LLM) to maximize RM reward using PPO. Crucial for aligning behavior with intent.',
+        shortDesc: 'Aligning models with human values',
+        definition: `RLHF aligns LLMs with human intent via 3 steps:
+1. **SFT**: Supervised fine-tuning on high-quality data.
+2. **Reward Model (RM)**: Train a classifier to predict human preference (A vs B).
+3. **PPO**: Optimize the LLM to maximize reward using Reinforcement Learning.`,
         related: ['fine-tuning', 'dpo'],
         tags: ['alignment', 'human-feedback'],
         codeExample: `# PPO Step (Conceptual)
 def ppo_step(policy, ref_policy, reward_model, batch):
-    # Generate
-    gen_tokens = policy.generate(batch.input_ids)
+    # Generate response
+    gen_ids = policy.generate(batch.input_ids)
     
     # Score with Reward Model
-    rewards = reward_model(gen_tokens)
+    reward = reward_model(gen_ids)
+    
+    # KL Penalty (stay close to reference)
+    kl = kl_divergence(policy(gen_ids), ref_policy(gen_ids))
     
     # PPO Objective
-    ratio = policy.log_prob(gen_tokens) / ref_policy.log_prob(gen_tokens)
-    clipped_ratio = torch.clamp(ratio, 0.8, 1.2)
-    
-    loss = -torch.min(ratio * rewards, clipped_ratio * rewards).mean()
-    
+    loss = - (reward - 0.1 * kl)
     loss.backward()`
     },
     {
@@ -698,25 +857,27 @@ def ppo_step(policy, ref_policy, reward_model, batch):
         fullName: 'Direct Preference Optimization',
         category: 'training',
         type: 'technique',
-        shortDesc: 'Simpler alternative to RLHF',
-        definition: 'DPO eliminates the Reward Model training step of RLHF. It directly optimizes the policy using preference pairs (chosen vs rejected). The loss function increases likelihood of chosen outputs while decreasing rejected ones, relative to a reference model.',
+        shortDesc: 'Simpler alignment than RLHF',
+        definition: `DPO removes the Reward Model training step. It optimizes the policy directly using preference pairs $(x, y_w, y_l)$ (winner/loser).
+
+**Loss Function:**
+$L_{DPO} = -\\mathbb{E} [\\log \\sigma (\\beta (\\log \\frac{\\pi(y_w|x)}{\\pi_{ref}(y_w|x)} - \\log \\frac{\\pi(y_l|x)}{\\pi_{ref}(y_l|x)}))]$`,
         related: ['rlhf', 'fine-tuning'],
         tags: ['alignment', 'simplified'],
-        codeExample: `# DPO Loss Function
-def dpo_loss(policy, reference, input_ids, chosen_ids, rejected_ids, beta=0.1):
-    policy_chosen = policy.log_prob(input_ids, chosen_ids)
-    policy_rejected = policy.log_prob(input_ids, rejected_ids)
+        codeExample: `# DPO Loss
+def dpo_loss(policy, reference, query, chosen, rejected, beta=0.1):
+    # Log probs
+    pi_chosen = policy.log_prob(query, chosen)
+    pi_rejected = policy.log_prob(query, rejected)
+    ref_chosen = reference.log_prob(query, chosen)
+    ref_rejected = reference.log_prob(query, rejected)
     
-    with torch.no_grad():
-        ref_chosen = reference.log_prob(input_ids, chosen_ids)
-        ref_rejected = reference.log_prob(input_ids, rejected_ids)
-    
-    pi_logratios = policy_chosen - policy_rejected
+    # Log ratios
+    pi_logratios = pi_chosen - pi_rejected
     ref_logratios = ref_chosen - ref_rejected
     
     logits = beta * (pi_logratios - ref_logratios)
     loss = -torch.nn.functional.logsigmoid(logits).mean()
-    
     return loss`
     },
 
@@ -726,14 +887,18 @@ def dpo_loss(policy, reference, input_ids, chosen_ids, rejected_ids, beta=0.1):
         name: 'Chain of Thought',
         category: 'prompting',
         type: 'technique',
-        shortDesc: 'Step-by-step reasoning traces',
-        definition: 'CoT forces the model to generate intermediate reasoning steps before the final answer. Zero-Shot CoT ("Let\'s think step by step") works surprisingly well. Auto-CoT generates reasoning chains automatically. Crucial for arithmetic, logic, and complex reasoning tasks.',
+        shortDesc: 'Reasoning traces before answers',
+        definition: `CoT elicits reasoning by asking the model to "think step by step". It improves performance on arithmetic, logic, and symbolic reasoning.
+
+**Variants:**
+- **Zero-Shot CoT**: "Let's think step by step."
+- **Few-Shot CoT**: Provide examples of reasoning chains.
+- **Self-Consistency**: Sample multiple reasoning paths and vote.`,
         related: ['prompt-engineering', 'planning'],
         tags: ['reasoning', 'technique'],
         codeExample: `# Zero-Shot CoT
 prompt = """
-Question: A juggler can juggle 6 balls. Half the balls are golf balls.
-Half of the golf balls are blue. How many blue golf balls?
+Question: If I have 3 apples and eat 1, how many are left?
 Let's think step by step.
 """`
 
@@ -744,56 +909,49 @@ Let's think step by step.
         category: 'prompting',
         type: 'technique',
         shortDesc: 'Exploring multiple reasoning paths',
-        definition: 'ToT generalizes CoT by exploring multiple reasoning possibilities as a tree search. It generates intermediate thoughts, evaluates them, and backtracks from dead ends. Useful for puzzles, creative writing, and strategic decisions where a single linear path might fail.',
+        definition: `ToT generalizes CoT by exploring a tree of thoughts. At each step, the model generates multiple possible next thoughts, evaluates them, and searches (BFS/DFS).
+
+**Use Case:** Complex puzzles, creative writing, strategic planning where linear reasoning fails.`,
         related: ['chain-of-thought', 'planning'],
         tags: ['reasoning', 'search'],
-        codeExample: `# Tree of Thoughts Pattern
-def tree_of_thoughts(prompt, llm, depth=3, breadth=3):
-    # BFS over thought states
-    current_states = [""]
-    
-    for d in range(depth):
+        codeExample: `# ToT Search (Conceptual)
+def tree_of_thoughts(prompt, llm):
+    states = [""]
+    for depth in range(3):
         new_states = []
-        for state in current_states:
-            # Generate possible next thoughts
-            thoughts = llm.generate(f"{prompt}\\nCurrent state: {state}\\nGenerate {breadth} possible next thoughts:")
-            
-            for thought in parse_thoughts(thoughts):
-                new_state = state + thought
-                # Evaluate promise of this state
-                score = llm.evaluate(new_state)
-                new_states.append((score, new_state))
-        
-        # Keep best branches
-        current_states = sorted(new_states, reverse=True)[:breadth]
-    
-    return current_states[0][1]`
+        for state in states:
+            thoughts = llm.generate(f"{prompt}\\nCurrent: {state}\\nNext thoughts:")
+            for thought in parse(thoughts):
+                score = llm.evaluate(thought)
+                new_states.append((score, state + thought))
+        # Keep best 3 states
+        states = sorted(new_states, reverse=True)[:3]
+    return states[0]`
     },
     {
         id: 'prompt-engineering',
         name: 'Prompt Engineering',
         category: 'prompting',
         type: 'core',
-        shortDesc: 'Optimizing inputs for model outputs',
-        definition: 'Prompt Engineering designs input templates to guide model behavior. Techniques: Few-Shot (examples), Role Prompting (persona), Structured Output Requests (JSON/XML). Advanced methods use generated knowledge (generate facts before answering) or Self-Consistency (sample multiple reasoning paths).',
+        shortDesc: 'Optimizing inputs for outputs',
+        definition: `Designing inputs to guide model behavior.
+**Techniques:** Role Prompting ("You are an expert..."), Few-Shot (Examples), Structured Output (JSON mode), and Context Management (retrieving relevant context).`,
         related: ['few-shot', 'chain-of-thought'],
         tags: ['fundamental', 'optimization'],
-        codeExample: `# Advanced Prompt Template
-PROMPT = """
-Role: You are a senior engineer.
-Task: Write a production-grade function.
+        codeExample: `# Advanced Prompt
+prompt = """
+Role: You are a Python Expert.
+Task: Write a function to sort a list.
 
-Requirements:
-- Use type hints
-- Include docstrings
-- Handle edge cases
+Constraints:
+- Time Complexity: O(n log n)
+- Include type hints
+- Handle edge cases (None, empty list)
 
-Format:
-\`\`\`python
-# Code here
-\`\`\`
-
-Question: {query}
+Output Format:
+```python
+def function(...): ...
+```
 """`
 
     },
@@ -804,18 +962,21 @@ Question: {query}
         name: 'Inference',
         category: 'infrastructure',
         type: 'core',
-        shortDesc: 'Serving models for predictions',
-        definition: 'Inference optimization balances latency, throughput, and cost. Key techniques: KV Caching (memoization), Continuous Batching (packing requests), Speculative Decoding (draft model guesses). Tools: vLLM (PagedAttention), TensorRT-LLM (NVIDIA), TGI (HuggingFace).',
+        shortDesc: 'Serving models at scale',
+        definition: `Running models in production requires optimizing for latency, throughput, and cost.
+
+**Key Optimizations:**
+1. **KV Caching**: Store previous key/values.
+2. **Continuous Batching**: Pack multiple requests.
+3. **Speculative Decoding**: Draft model guesses, main model verifies.
+4. **Quantization**: FP16 -> INT4.`,
         related: ['quantization', 'kv-cache'],
         tags: ['production', 'serving'],
-        codeExample: `# vLLM Continuous Batching
+        codeExample: `# vLLM Serving
 from vllm import LLM, SamplingParams
 
 llm = LLM(model="mistralai/Mistral-7B-Instruct-v0.2")
-
 params = SamplingParams(max_tokens=128, temperature=0.7)
-
-# Handles continuous batching internally
 outputs = llm.generate(prompts, params)`
     },
     {
@@ -823,47 +984,33 @@ outputs = llm.generate(prompts, params)`
         name: 'Quantization',
         category: 'infrastructure',
         type: 'technique',
-        shortDesc: 'Compressing models via reduced precision',
-        definition: 'Quantization reduces weights from FP16/FP32 to INT8/INT4. PTQ (Post-Training Quantization) is fast but lower quality. QAT (Quantization-Aware Training) preserves accuracy better. GPTQ/AWQ/SpQR are popular algorithms for LLM compression. 4-bit is the sweet spot for efficiency/quality.',
+        shortDesc: 'Compressing models',
+        definition: `Reducing precision to save memory/bandwidth.
+**PTQ (Post-Training Quantization):** Fast, slight accuracy drop.
+**QAT (Quantization-Aware Training):** Slower, better accuracy.
+**GPTQ/AWQ:** Popular LLM quantization methods.`,
         related: ['inference', 'lora'],
         tags: ['compression', 'efficiency'],
-        codeExample: `# GPTQ Quantization
-from transformers import AutoModelForCausalLM, AutoTokenizer, GPTQConfig
-
-quantization_config = GPTQConfig(
-    bits=4,
-    dataset="c4",
-    group_size=128,
-    desc_act=False
-)
-
-model = AutoModelForCausalLM.from_quantized(
-    "TheBloke/Llama-2-7B-GPTQ",
-    quantization_config=quantization_config
-)`
+        codeExample: `# GPTQ Config
+from transformers import GPTQConfig
+config = GPTQConfig(bits=4, dataset="c4")
+model = AutoModelForCausalLM.from_pretrained("model", quantization_config=config)`
     },
     {
         id: 'kv-cache',
         name: 'KV Cache',
         category: 'infrastructure',
         type: 'technique',
-        shortDesc: 'Caching attention states for speed',
-        definition: 'KV Cache stores previous Key/Value projections to avoid recomputation during token generation. Requires O(N) memory. PagedAttention (vLLM) manages KV cache like virtual memory pages, solving fragmentation. Enables 10x+ higher throughput.',
+        shortDesc: 'Caching attention states',
+        definition: `Stores past Key/Value tensors to avoid recomputation during generation. **PagedAttention (vLLM)** manages KV cache like virtual memory to prevent fragmentation.`,
         related: ['inference', 'attention-mechanism'],
         tags: ['optimization', 'memory'],
-        codeExample: `# PagedAttention Concept
+        codeExample: `# Paged Attention (vLLM handles internally)
+# Concept: Virtual memory blocks for KV cache
 class PagedKVCache:
     def __init__(self, block_size=16):
-        self.blocks = {}  # Virtual memory blocks
-        self.block_tables = {}  # Mapping seq_id -> blocks
-    
-    def allocate(self, seq_id):
-        # Allocate blocks on demand
-        self.block_tables[seq_id] = []
-        
-    def append(self, seq_id, new_k, new_v):
-        # Write to paged memory
-        pass`
+        self.blocks = {} # physical blocks
+        self.block_tables = {} # mapping`
     },
 
     // ========== APPLICATIONS SECTION ==========
@@ -872,117 +1019,65 @@ class PagedKVCache:
         name: 'Chatbots',
         category: 'applications',
         type: 'application',
-        shortDesc: 'Conversational AI systems',
-        definition: 'Chatbots use RAG for knowledge, Tools for actions, and Memory for context. Key challenge: State Management across turns. Long-context models reduce retrieval frequency. Systems must handle intent recognition, safety filters, and graceful failure.',
+        shortDesc: 'Conversational AI',
+        definition: `Chatbots combine RAG, Tools, and Memory.
+**State Management:** Handling history truncation/summarization.
+**Safety:** Content filtering, guardrails.`,
         related: ['rag', 'agentic-ai'],
         tags: ['conversational', 'interface'],
-        codeExample: `# Chatbot State Machine
+        codeExample: `# Chatbot
 class ChatBot:
     def __init__(self, llm, retriever):
         self.history = []
-    
-    def chat(self, message):
-        # 1. Retrieve Context
-        context = retriever.search(message)
-        
-        # 2. Build Prompt
-        prompt = build_prompt(history, context, message)
-        
-        # 3. Generate
-        response = llm.invoke(prompt)
-        
-        # 4. Update History
-        self.history.append((message, response))
-        return response`
+    def chat(self, msg):
+        ctx = retriever.search(msg)
+        prompt = build_prompt(self.history, ctx, msg)
+        resp = self.llm.invoke(prompt)
+        self.history.append((msg, resp))
+        return resp`
     },
     {
         id: 'code-generation',
         name: 'Code Generation',
         category: 'applications',
         type: 'application',
-        shortDesc: 'AI-assisted software development',
-        definition: 'Code Generation models (Codex, StarCoder, CodeLlama) are trained on code corpora. Context Window is critical (fitting large files). FIM (Fill-In-the-Middle) enables code completion. Agents can iteratively fix compiler errors. RAG with documentation ensures library usage accuracy.',
+        shortDesc: 'AI coding assistants',
+        definition: `Models trained on code (Codex, StarCoder).
+**FIM (Fill-In-the-Middle)**: Completing code within a file.
+**Context:** Needs full file context for imports/dependencies.`,
         related: ['llm', 'tool-use'],
         tags: ['development', 'productivity'],
         codeExample: `# FIM (Fill-In-Middle)
-prefix = "def calculate_sum("
-suffix = "    return total"
-middle = model.generate(f"<PRE> {prefix} <SUF>{suffix} <MID>")
-print(prefix + middle + suffix)
-# Output: def calculate_sum(numbers):
-#             total = 0
-#             for n in numbers:
-#                 total += n
-#         return total`
+prefix = "def sum(a, b):"
+suffix = "return result"
+middle = model.generate(f"<PRE>{prefix}<SUF>{suffix}<MID>")
+print(prefix + middle + suffix)`
     }
 ];
 
 // ==========================================
-// BUILD & EXPORT KNOWLEDGE BASE
+// BUILD & EXPORT
 // ==========================================
 const KnowledgeBase = {
     meta: {
-        version: '2.0.0',
+        version: '2.1.0',
         lastUpdated: '2025-01-15',
-        description: 'Interactive AI Knowledge Graph - Enhanced'
+        description: 'Interactive AI Knowledge Graph - God Mode'
     },
     categories: CategoryData,
     terms: TermData.map(t => createTerm(t))
 };
 
 const KnowledgeUtils = {
-    addCategory(category) {
-        if (!category.id || !category.name) return false;
-        if (KnowledgeBase.categories.find(c => c.id === category.id)) return false;
-        KnowledgeBase.categories.push({...category});
-        return true;
-    },
-
-    addTerm(termConfig) {
-        if (!termConfig.id || !termConfig.name) return false;
-        if (KnowledgeBase.terms.find(t => t.id === termConfig.id)) return false;
-        KnowledgeBase.terms.push(createTerm(termConfig));
-        return true;
-    },
-
-    getTerm(id) {
-        return KnowledgeBase.terms.find(t => t.id === id);
-    },
-
-    getTermsByCategory(categoryId) {
-        return KnowledgeBase.terms.filter(t => t.category === categoryId);
-    },
-
-    getRelatedTerms(termId) {
-        const term = this.getTerm(termId);
-        if (!term || !term.related) return [];
-        return term.related.map(rId => this.getTerm(rId)).filter(Boolean);
-    },
-
-    searchTerms(query) {
-        if (!query) return KnowledgeBase.terms;
-        const q = query.toLowerCase();
-        return KnowledgeBase.terms.filter(t => 
-            t.name.toLowerCase().includes(q) ||
-            t.shortDesc.toLowerCase().includes(q) ||
-            t.fullName.toLowerCase().includes(q) ||
-            t.tags.some(tag => tag.toLowerCase().includes(q))
-        );
-    },
-
-    getStats() {
-        return {
-            categories: KnowledgeBase.categories.length,
-            terms: KnowledgeBase.terms.length,
-            connections: KnowledgeBase.terms.reduce((sum, t) => sum + (t.related?.length || 0), 0),
-            byCategory: KnowledgeBase.categories.reduce((acc, cat) => {
-                acc[cat.id] = this.getTermsByCategory(cat.id).length;
-                return acc;
-            }, {})
-        };
-    }
+    addCategory(c) { if (!KnowledgeBase.categories.find(x => x.id === c.id)) KnowledgeBase.categories.push(c); },
+    addTerm(t) { if (!KnowledgeBase.terms.find(x => x.id === t.id)) KnowledgeBase.terms.push(createTerm(t)); },
+    getTerm(id) { return KnowledgeBase.terms.find(t => t.id === id); },
+    getTermsByCategory(cid) { return KnowledgeBase.terms.filter(t => t.category === cid); },
+    getRelatedTerms(tid) { const t = this.getTerm(tid); return t?.related?.map(r => this.getTerm(r)).filter(Boolean) || []; },
+    searchTerms(q) { if (!q) return KnowledgeBase.terms; const lq = q.toLowerCase(); return KnowledgeBase.terms.filter(t => t.name.toLowerCase().includes(lq) || t.shortDesc.toLowerCase().includes(lq)); },
+    getStats() { return { categories: KnowledgeBase.categories.length, terms: KnowledgeBase.terms.length, connections: KnowledgeBase.terms.reduce((s, t) => s + (t.related?.length || 0), 0), byCategory: KnowledgeBase.categories.reduce((a, c) => { a[c.id] = this.getTermsByCategory(c.id).length; return a; }, {}) }; }
 };
 
-console.log('KnowledgeBase loaded:', KnowledgeBase.categories.length, 'categories,', KnowledgeBase.terms.length, 'terms');
+console.log('KnowledgeBase loaded:', KnowledgeBase.categories.length, 'cats,', KnowledgeBase.terms.length, 'terms');
 window.KnowledgeBase = KnowledgeBase;
 window.KnowledgeUtils = KnowledgeUtils;
