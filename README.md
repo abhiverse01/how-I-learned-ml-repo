@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/titanML.png" alt="TitanML Banner" width="100%" />
+  <img src="assets/TitanML.png" alt="TitanML Banner" width="100%" />
 </p>
 
 <h1 align="center">🧠 TitanML — AI Knowledge Nexus</h1>
