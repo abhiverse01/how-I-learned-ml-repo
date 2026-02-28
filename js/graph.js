@@ -1,5 +1,5 @@
 /**
- * Knowledge Graph Visualization - FIXED
+ * Knowledge Graph Visualization - OPTIMIZED & ENHANCED
  */
 
 class KnowledgeGraph {
@@ -12,7 +12,7 @@ class KnowledgeGraph {
         
         this.ctx = this.canvas.getContext('2d');
         
-        // Options with defaults
+        // Options
         this.options = {
             nodeRadius: { core: 22, technique: 16, infrastructure: 14, application: 12 },
             fontSize: 10,
@@ -23,6 +23,7 @@ class KnowledgeGraph {
         // State
         this.nodes = [];
         this.edges = [];
+        this.nodeMap = new Map(); // Performance: O(1) lookups
         this.zoom = 1;
         this.panX = 0;
         this.panY = 0;
@@ -31,8 +32,13 @@ class KnowledgeGraph {
         this.isDragging = false;
         this.lastMouse = { x: 0, y: 0 };
         this.animationId = null;
+        
+        // Logical dimensions (independent of screen pixels)
+        this.width = 0;
+        this.height = 0;
         this.centerX = 0;
         this.centerY = 0;
+        this.dpr = window.devicePixelRatio || 1;
         
         // Physics config
         this.physics = {
@@ -60,20 +66,36 @@ class KnowledgeGraph {
     bindEvents() {
         window.addEventListener('resize', () => this.handleResize());
         
+        // Mouse Events
         this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
         this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
         this.canvas.addEventListener('mouseup', () => this.handleMouseUp());
         this.canvas.addEventListener('mouseleave', () => this.handleMouseLeave());
         this.canvas.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
         this.canvas.addEventListener('click', (e) => this.handleClick(e));
+        
+        // Touch Events for Mobile
+        this.canvas.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false });
+        this.canvas.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
+        this.canvas.addEventListener('touchend', () => this.handleMouseUp());
     }
     
     handleResize() {
         const rect = this.canvas.parentElement.getBoundingClientRect();
-        this.canvas.width = rect.width || 800;
-        this.canvas.height = rect.height || 600;
-        this.centerX = this.canvas.width / 2;
-        this.centerY = this.canvas.height / 2;
+        this.width = rect.width || 800;
+        this.height = rect.height || 600;
+        this.centerX = this.width / 2;
+        this.centerY = this.height / 2;
+        
+        // HiDPI / Retina support
+        this.dpr = window.devicePixelRatio || 1;
+        this.canvas.width = this.width * this.dpr;
+        this.canvas.height = this.height * this.dpr;
+        this.canvas.style.width = `${this.width}px`;
+        this.canvas.style.height = `${this.height}px`;
+        
+        // Reset transform and scale for crisp drawing
+        this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     }
     
     loadData() {
@@ -84,6 +106,7 @@ class KnowledgeGraph {
         
         this.nodes = [];
         this.edges = [];
+        this.nodeMap.clear();
         
         const categories = KnowledgeBase.categories;
         const terms = KnowledgeBase.terms;
@@ -119,7 +142,7 @@ class KnowledgeGraph {
             const jitterX = (Math.random() - 0.5) * 30;
             const jitterY = (Math.random() - 0.5) * 30;
             
-            this.nodes.push({
+            const node = {
                 id: term.id,
                 x: this.centerX + Math.cos(angle) * distance + jitterX,
                 y: this.centerY + Math.sin(angle) * distance + jitterY,
@@ -130,7 +153,10 @@ class KnowledgeGraph {
                 color: category ? category.color : '#6b7280',
                 highlighted: false,
                 visible: true
-            });
+            };
+            
+            this.nodes.push(node);
+            this.nodeMap.set(term.id, node); // Populate Map
         });
         
         // Create edges
@@ -192,8 +218,8 @@ class KnowledgeGraph {
         
         // Edge attraction
         this.edges.forEach(edge => {
-            const source = this.findNode(edge.source);
-            const target = this.findNode(edge.target);
+            const source = this.nodeMap.get(edge.source); // OPTIMIZED
+            const target = this.nodeMap.get(edge.target); // OPTIMIZED
             if (!source || !target || !source.visible || !target.visible) return;
             
             const dx = target.x - source.x;
@@ -228,20 +254,17 @@ class KnowledgeGraph {
             
             // Bounds
             const padding = this.options.padding;
-            node.x = Math.max(padding, Math.min(this.canvas.width - padding, node.x));
-            node.y = Math.max(padding, Math.min(this.canvas.height - padding, node.y));
+            node.x = Math.max(padding, Math.min(this.width - padding, node.x));
+            node.y = Math.max(padding, Math.min(this.height - padding, node.y));
         });
     }
     
-    findNode(id) {
-        return this.nodes.find(n => n.id === id);
-    }
-    
+    // Map screen coordinates to logical coordinates
     screenToWorld(sx, sy) {
-        const rect = this.canvas.getBoundingClientRect();
+        // Since canvas CSS size equals logical size, we just adjust for pan/zoom
         return {
-            x: (sx - rect.left - this.panX) / this.zoom,
-            y: (sy - rect.top - this.panY) / this.zoom
+            x: (sx - this.panX) / this.zoom,
+            y: (sy - this.panY) / this.zoom
         };
     }
     
@@ -257,8 +280,14 @@ class KnowledgeGraph {
         return null;
     }
     
+    // --- Interaction Handlers ---
+
     handleMouseMove(e) {
-        const world = this.screenToWorld(e.clientX, e.clientY);
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        const world = this.screenToWorld(x, y);
         
         if (this.isDragging) {
             const dx = e.clientX - this.lastMouse.x;
@@ -277,6 +306,29 @@ class KnowledgeGraph {
         }
     }
     
+    handleTouchStart(e) {
+        if (e.touches.length === 1) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            this.isDragging = true;
+            this.lastMouse = { x: touch.clientX, y: touch.clientY };
+            this.canvas.style.cursor = 'grabbing';
+        }
+    }
+
+    handleTouchMove(e) {
+        if (e.touches.length === 1 && this.isDragging) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const dx = touch.clientX - this.lastMouse.x;
+            const dy = touch.clientY - this.lastMouse.y;
+            this.panX += dx;
+            this.panY += dy;
+            this.lastMouse.x = touch.clientX;
+            this.lastMouse.y = touch.clientY;
+        }
+    }
+
     handleMouseDown(e) {
         this.isDragging = true;
         this.lastMouse = { x: e.clientX, y: e.clientY };
@@ -296,31 +348,43 @@ class KnowledgeGraph {
     
     handleWheel(e) {
         e.preventDefault();
-        const delta = e.deltaY > 0 ? 0.92 : 1.08;
-        const newZoom = Math.max(0.3, Math.min(3, this.zoom * delta));
         
         const rect = this.canvas.getBoundingClientRect();
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
         
+        const delta = e.deltaY > 0 ? 0.92 : 1.08;
+        const newZoom = Math.max(0.3, Math.min(3, this.zoom * delta));
+        
+        // Zoom towards mouse position
         this.panX = mx - (mx - this.panX) * (newZoom / this.zoom);
         this.panY = my - (my - this.panY) * (newZoom / this.zoom);
         this.zoom = newZoom;
     }
     
     handleClick(e) {
+        // Only select if not dragging (prevents selection on mouseup after drag)
         if (this.hoveredNode) {
             this.selectedNode = this.hoveredNode;
             if (this.onNodeSelect) this.onNodeSelect(this.hoveredNode.term);
         }
     }
     
+    // --- Controls ---
+    
     zoomIn() {
-        this.zoom = Math.min(3, this.zoom * 1.2);
+        const newZoom = Math.min(3, this.zoom * 1.2);
+        // Zoom towards center
+        this.panX = this.width/2 - (this.width/2 - this.panX) * (newZoom / this.zoom);
+        this.panY = this.height/2 - (this.height/2 - this.panY) * (newZoom / this.zoom);
+        this.zoom = newZoom;
     }
     
     zoomOut() {
-        this.zoom = Math.max(0.3, this.zoom / 1.2);
+        const newZoom = Math.max(0.3, this.zoom / 1.2);
+        this.panX = this.width/2 - (this.width/2 - this.panX) * (newZoom / this.zoom);
+        this.panY = this.height/2 - (this.height/2 - this.panY) * (newZoom / this.zoom);
+        this.zoom = newZoom;
     }
     
     resetView() {
@@ -359,41 +423,42 @@ class KnowledgeGraph {
         if (this.animationId) cancelAnimationFrame(this.animationId);
     }
     
+    // --- Rendering ---
+
     render() {
         const ctx = this.ctx;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
         
-        // Clear
+        // Clear logical area (accounting for DPR set in handleResize)
+        ctx.save();
+        ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); // Ensure clean slate for DPR
         ctx.fillStyle = '#fafbfc';
-        ctx.fillRect(0, 0, w, h);
+        ctx.fillRect(0, 0, this.width, this.height);
         
         // Grid
         ctx.strokeStyle = 'rgba(0,0,0,0.025)';
         ctx.lineWidth = 1;
         const gridSize = 30;
-        for (let x = 0; x < w; x += gridSize) {
+        for (let x = 0; x < this.width; x += gridSize) {
             ctx.beginPath();
             ctx.moveTo(x, 0);
-            ctx.lineTo(x, h);
+            ctx.lineTo(x, this.height);
             ctx.stroke();
         }
-        for (let y = 0; y < h; y += gridSize) {
+        for (let y = 0; y < this.height; y += gridSize) {
             ctx.beginPath();
             ctx.moveTo(0, y);
-            ctx.lineTo(w, y);
+            ctx.lineTo(this.width, y);
             ctx.stroke();
         }
         
-        // Transform
-        ctx.save();
+        // Apply Pan & Zoom
         ctx.translate(this.panX, this.panY);
         ctx.scale(this.zoom, this.zoom);
         
         // Edges
         this.edges.forEach(edge => {
-            const source = this.findNode(edge.source);
-            const target = this.findNode(edge.target);
+            const source = this.nodeMap.get(edge.source);
+            const target = this.nodeMap.get(edge.target);
             if (!source || !target || !source.visible || !target.visible) return;
             
             const isHighlighted = this.selectedNode && 
