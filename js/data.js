@@ -1,6 +1,6 @@
 /**
  * AI Knowledge Base - Extensible Data Structure
- * GOD MODE ENHANCED: Deep technical details & production patterns.
+ * GOD MODE ENHANCED: Fixed syntax errors and optimized definitions.
  */
 
 // ==========================================
@@ -38,7 +38,7 @@ const CategoryData = [
 ];
 
 // ==========================================
-// TERM DEFINITIONS (GOD MODE ENHANCED)
+// TERM DEFINITIONS
 // ==========================================
 const TermData = [
     // ========== RAG SECTION ==========
@@ -115,7 +115,7 @@ response = llm.invoke(prompt)`
 - **Recall**: Percentage of true nearest neighbors found.
 - **QPS (Queries Per Second)**: Throughput.
 - **Latency**: Time per query (P50, P99).`,
-        related: ['embeddings', 'rag', 'hnsw'],
+        related: ['embeddings', 'rag'],
         tags: ['infrastructure', 'storage', 'ann'],
         codeExample: `# Production Qdrant Setup with HNSW
 from qdrant_client import QdrantClient
@@ -194,15 +194,11 @@ print(f"Semantic Similarity: {cosine_similarity(vec1, vec2):.4f}")`
 2. **Dense Vectors (Embeddings)**: Capture semantic meaning. Great for concepts and synonyms.
 
 **Fusion Algorithm:** 
-**Reciprocal Rank Fusion (RRF)** is the standard. It combines ranked lists without needing normalized scores. Formula: $RRF(d) = \\sum \\frac{1}{k + rank(d)}$`,
+**Reciprocal Rank Fusion (RRF)** is the standard. It combines ranked lists without needing normalized scores. Formula: RRF(d) = sum( 1 / (k + rank(d)) )`,
         related: ['reranking', 'semantic-search'],
         tags: ['retrieval', 'precision'],
         codeExample: `# Reciprocal Rank Fusion (RRF) Implementation
 def reciprocal_rank_fusion(results_dict, k=60):
-    """
-    results_dict: {'bm25': [doc1, doc2], 'vector': [doc2, doc3]}
-    k: Constant to smooth rankings (standard is 60)
-    """
     fused_scores = {}
     
     for system, docs in results_dict.items():
@@ -250,12 +246,9 @@ G.add_edge("Satya Nadella", "Microsoft", relation="CEO")
 
 # 3. Multi-hop Query
 def get_context(graph, entity, depth=2):
-    # Find connected entities within 'depth' hops
     context_nodes = nx.single_source_shortest_path_length(graph, entity, cutoff=depth)
     return list(context_nodes.keys())
 
-# Query: "Who is the CEO of the company that acquired GitHub?"
-# Traverse: GitHub --acquired--> Microsoft --CEO--> Satya Nadella
 print(get_context(G, "GitHub")) # ['GitHub', 'Microsoft', 'Satya Nadella']`
     },
     {
@@ -289,7 +282,6 @@ retriever = ParentDocumentRetriever(
     child_splitter=child_splitter,
     parent_splitter=parent_splitter,
 )
-
 # When queried, it retrieves small chunks, maps them to parents, returns full parent docs.`
     },
     {
@@ -311,17 +303,11 @@ Vector Search (Retrieve 100) -> Cross-Encoder (Rerank to Top 5).`,
         codeExample: `# Cross-Encoder Reranking
 from sentence_transformers import CrossEncoder
 
-# Load a pre-trained cross-encoder
 model = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
 
 def rerank(query, docs, top_k=5):
-    # Create pairs of (query, document_text)
     pairs = [[query, doc.page_content] for doc in docs]
-    
-    # Predict scores (this is the heavy computation)
     scores = model.predict(pairs)
-    
-    # Sort by score
     ranked = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
     return [doc for doc, score in ranked[:top_k]]`
     },
@@ -348,7 +334,6 @@ def rerank(query, docs, top_k=5):
 def react_agent(query, llm, tools, max_steps=10):
     history = ""
     for step in range(max_steps):
-        # 1. Prompt for Thought/Action
         prompt = f"""
         Question: {query}
         History: {history}
@@ -357,17 +342,13 @@ def react_agent(query, llm, tools, max_steps=10):
         Thought: [Your reasoning]
         Action: tool_name[input]
         """
-        
         response = llm.invoke(prompt)
         history += f"\\n{response}"
         
-        # 2. Parse Action
         if "Action:" not in response:
             return response # Final Answer
         
         action = parse_action(response) # e.g., "search['AI news']"
-        
-        # 3. Execute Tool
         observation = execute_tool(action, tools)
         history += f"\\nObservation: {observation}"`
     },
@@ -400,10 +381,7 @@ def multiply(a: int, b: int) -> int:
     """Multiplies two integers."""
     return a * b
 
-# Bind to LLM
 llm_with_tools = llm.bind_tools([multiply])
-
-# Invocation
 response = llm_with_tools.invoke("What is 5 times 7?")
 # Model outputs: tool_call(name='multiply', args={'a': 5, 'b': 7})`
     },
@@ -426,19 +404,16 @@ response = llm_with_tools.invoke("What is 5 times 7?")
         codeExample: `# CrewAI Hierarchical Process
 from crewai import Crew, Agent, Task, Process
 
-# Define Agents
-manager = Agent(role="Manager", goal="Delegate tasks", ...)
-researcher = Agent(role="Researcher", goal="Find info", tools=[search_tool], ...)
-writer = Agent(role="Writer", goal="Write article", ...)
+manager = Agent(role="Manager", goal="Delegate tasks", allow_delegation=True)
+researcher = Agent(role="Researcher", goal="Find info", tools=[search_tool])
+writer = Agent(role="Writer", goal="Write article")
 
-# Define Crew
 crew = Crew(
     agents=[researcher, writer],
     manager_agent=manager,
-    process=Process.hierarchical, # Manager delegates
+    process=Process.hierarchical,
     tasks=[Task(description="Write about AI")]
 )
-
 result = crew.kickoff()`
     },
     {
@@ -457,17 +432,13 @@ result = crew.kickoff()`
         tags: ['reasoning', 'decomposition'],
         codeExample: `# Plan-and-Execute Pattern
 def plan_and_execute(goal, llm, executor):
-    # 1. Planner
-    plan_prompt = f"Break down goal into steps: {goal}"
-    plan = llm.invoke(plan_prompt)
-    steps = parse_plan(plan) # Returns list of strings
+    plan = llm.invoke(f"Break down goal into steps: {goal}")
+    steps = parse_plan(plan)
     
-    # 2. Executor
     for step in steps:
-        for attempt in range(3): # Retry logic
+        for attempt in range(3):
             result = executor(step)
             if result.success: break
-            # Replan on failure
             step = llm.invoke(f"Step failed: {step}. Error: {result.error}. Revise.")
         else:
             raise Exception(f"Failed at step: {step}")
@@ -487,22 +458,12 @@ def plan_and_execute(goal, llm, executor):
         codeExample: `# Reflexion Pattern
 def reflect_and_solve(task, llm, max_retries=3):
     reflections = []
-    
     for i in range(max_retries):
-        # 1. Generate Solution
-        prompt = f"Task: {task}\\nPast Reflections: {reflections}"
-        solution = llm.invoke(prompt)
-        
-        # 2. Evaluate
+        solution = llm.invoke(f"Task: {task}\\nPast Reflections: {reflections}")
         is_correct, feedback = execute_and_test(solution)
-        
         if is_correct: return solution
-        
-        # 3. Reflect
-        reflection_prompt = f"Solution failed.\\nFeedback: {feedback}\\nReflect on why."
-        reflection = llm.invoke(reflection_prompt)
+        reflection = llm.invoke(f"Solution failed.\\nFeedback: {feedback}\\nReflect on why.")
         reflections.append(reflection)
-    
     return None`
     },
 
@@ -559,11 +520,7 @@ async def call_tool(name, arguments):
         codeExample: `# Defining an MCP Tool
 @server.tool()
 def query_database(sql: str) -> str:
-    \"\"\"
-    Executes a read-only SQL query.
-    Args:
-        sql: The SQL query string.
-    \"\"\"
+    """Executes a read-only SQL query."""
     return execute_sql_safely(sql)`
     },
     {
@@ -572,7 +529,7 @@ def query_database(sql: str) -> str:
         category: 'mcp',
         type: 'technique',
         shortDesc: 'URI-addressable data via MCP',
-        definition: `MCP Resources provide a file-like interface to data. Accessible via URIs (e.g., \`file:///logs/app.log\` or \`postgres://db/users\`). Supports listing and reading.`,
+        definition: `MCP Resources provide a file-like interface to data. Accessible via URIs (e.g., file:///logs/app.log or postgres://db/users). Supports listing and reading.`,
         related: ['mcp', 'context-window'],
         tags: ['data', 'read-only'],
         codeExample: `# MCP Resource Template
@@ -591,7 +548,7 @@ def read_log(log_id: str) -> str:
         definition: `Transformers rely on **Self-Attention** to process sequences in parallel, replacing recurrence (RNNs).
 
 **Key Equations:**
-- **Attention**: $Attention(Q, K, V) = softmax(\\frac{QK^T}{\\sqrt{d_k}})V$
+- **Attention**: Attention(Q, K, V) = softmax(QK^T / sqrt(d_k))V
 - **LayerNorm**: Stabilizes training by normalizing across features.
 - **Positional Encoding**: Injects order info since attention is permutation-invariant.`,
         related: ['attention-mechanism', 'llm'],
@@ -643,16 +600,14 @@ class MoELayer(nn.Module):
         self.top_k = top_k
 
     def forward(self, x):
-        gate_logits = self.gate(x) # [Batch, Seq, Num_Experts]
+        gate_logits = self.gate(x)
         weights, indices = torch.topk(gate_logits, self.top_k, dim=-1)
         weights = torch.softmax(weights, dim=-1)
         
         output = torch.zeros_like(x)
         for i in range(self.top_k):
-            expert_idx = indices[..., i]  # Selected expert index
+            expert_idx = indices[..., i]
             expert_weight = weights[..., i].unsqueeze(-1)
-            
-            # Route tokens to experts (simplified)
             expert_out = self.experts[expert_idx](x)
             output += expert_out * expert_weight
         return output`
@@ -663,9 +618,9 @@ class MoELayer(nn.Module):
         category: 'architecture',
         type: 'technique',
         shortDesc: 'Memory-efficient exact attention',
-        definition: `Flash Attention is an IO-aware algorithm that computes exact attention in $O(N)$ memory instead of $O(N^2)$.
+        definition: `Flash Attention is an IO-aware algorithm that computes exact attention in O(N) memory instead of O(N^2).
 
-**Key Insight:** Attention materialization dominates HBM (High Bandwidth Memory) access. Flash Attention computes attention block-by-block on fast SRAM, never writing the huge $N \\times N$ matrix to HBM.
+**Key Insight:** Attention materialization dominates HBM (High Bandwidth Memory) access. Flash Attention computes attention block-by-block on fast SRAM, never writing the huge N x N matrix to HBM.
 
 **Impact:** Enables 4-16x longer context lengths. Now standard in PyTorch 2.0+ and HuggingFace.`,
         related: ['attention-mechanism', 'context-window'],
@@ -689,8 +644,7 @@ with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False):
         shortDesc: 'Foundation models trained on massive text',
         definition: `LLMs are decoder-only Transformers trained on trillions of tokens via Next Token Prediction.
 
-**Scaling Laws:** Performance ($L$) follows a power law with compute ($C$), data ($D$), and parameters ($N$).
-$L(N) = (N_c/N)^{\\alpha_N}$.
+**Scaling Laws:** Performance (L) follows a power law with compute (C), data (D), and parameters (N).
 
 **Architectural Nuances:**
 - **RoPE (Rotary Positional Embeddings)**: Modern positional encoding (better length extrapolation).
@@ -701,7 +655,6 @@ $L(N) = (N_c/N)^{\\alpha_N}$.
         codeExample: `# LLM Generation Config
 from transformers import GenerationConfig
 
-# Configuring decoding strategy
 config = GenerationConfig(
     max_new_tokens=256,
     temperature=0.7,
@@ -710,7 +663,6 @@ config = GenerationConfig(
     repetition_penalty=1.1, # Prevent loops
     do_sample=True
 )
-
 output = model.generate(**inputs, generation_config=config)`
     },
     {
@@ -723,7 +675,7 @@ output = model.generate(**inputs, generation_config=config)`
 
 **Algorithms:**
 - **BPE (Byte Pair Encoding)**: Merges frequent byte pairs. Used by GPT, Llama.
-- **WordPiece**: Used by BERT. Uses \`##\` prefix for subwords.
+- **WordPiece**: Used by BERT. Uses ## prefix for subwords.
 - **Unigram**: Used by SentencePiece/T5. Probabilistic.
 
 **Why not words?** Vocabulary size explodes. Why not chars? Context length explodes. Subwords are the sweet spot.`,
@@ -737,7 +689,7 @@ ids = enc.encode("Hello World")
 text = enc.decode(ids)
 
 # Special token handling
-ids = enc.encode("Hello<|endoftext|>", allowed_special="all")`
+ids = enc.encode("Hello <special>", allowed_special="all")`
     },
 
     // ========== TRAINING SECTION ==========
@@ -749,7 +701,7 @@ ids = enc.encode("Hello<|endoftext|>", allowed_special="all")`
         shortDesc: 'Self-supervised learning on massive data',
         definition: `Pre-training builds foundational knowledge via **Next Token Prediction (NTP)**.
 
-**Objective:** Maximize $\\sum \\log P(x_t | x_{<t})$.
+**Objective:** Maximize sum(log P(x_t | x_<t)).
 
 **Compute Optimal (Chinchilla):** For a given compute budget, model size and data tokens should scale equally. Chinchilla showed many models were undertrained (too big, too little data).`,
         related: ['llm', 'fine-tuning'],
@@ -786,7 +738,6 @@ def train_step(batch, model, optimizer):
 def train_sft(model, train_loader, optimizer):
     model.train()
     for batch in train_loader:
-        # batch = input_ids, labels (shifted by 1)
         loss = model(**batch).loss
         loss.backward()
         optimizer.step()
@@ -800,12 +751,12 @@ def train_sft(model, train_loader, optimizer):
         type: 'technique',
         shortDesc: 'Efficient fine-tuning via low-rank updates',
         definition: `LoRA injects trainable rank decomposition matrices into Transformer layers.
-For a weight matrix $W$, we add $\\Delta W = BA$. $B \\in \\mathbb{R}^{d \\times r}, A \\in \\mathbb{R}^{r \\times k}$.
-Only $B$ and $A$ are updated.
+For a weight matrix W, we add Delta_W = BA. B (d x r), A (r x k).
+Only B and A are updated.
 
 **Key Hyperparameters:**
 - **Rank (r)**: Usually 8-64. Higher = more capacity.
-- **Alpha ($\\alpha$)**: Scaling factor. Effective learning rate scales with $\\alpha/r$.
+- **Alpha**: Scaling factor. Effective learning rate scales with alpha/r.
 - **Target Modules**: Usually query/value projections.`,
         related: ['fine-tuning', 'qlora'],
         tags: ['efficient', 'peft'],
@@ -819,7 +770,6 @@ config = LoraConfig(
     lora_dropout=0.05,
     bias="none"
 )
-
 model = get_peft_model(base_model, config)
 # Trainable params: 0.1% of total`
     },
@@ -838,16 +788,9 @@ model = get_peft_model(base_model, config)
         tags: ['alignment', 'human-feedback'],
         codeExample: `# PPO Step (Conceptual)
 def ppo_step(policy, ref_policy, reward_model, batch):
-    # Generate response
     gen_ids = policy.generate(batch.input_ids)
-    
-    # Score with Reward Model
     reward = reward_model(gen_ids)
-    
-    # KL Penalty (stay close to reference)
     kl = kl_divergence(policy(gen_ids), ref_policy(gen_ids))
-    
-    # PPO Objective
     loss = - (reward - 0.1 * kl)
     loss.backward()`
     },
@@ -858,21 +801,18 @@ def ppo_step(policy, ref_policy, reward_model, batch):
         category: 'training',
         type: 'technique',
         shortDesc: 'Simpler alignment than RLHF',
-        definition: `DPO removes the Reward Model training step. It optimizes the policy directly using preference pairs $(x, y_w, y_l)$ (winner/loser).
+        definition: `DPO removes the Reward Model training step. It optimizes the policy directly using preference pairs (x, y_w, y_l) (winner/loser).
 
-**Loss Function:**
-$L_{DPO} = -\\mathbb{E} [\\log \\sigma (\\beta (\\log \\frac{\\pi(y_w|x)}{\\pi_{ref}(y_w|x)} - \\log \\frac{\\pi(y_l|x)}{\\pi_{ref}(y_l|x)}))]$`,
+**Loss Function:** Directly optimizes the log-likelihood ratio of the chosen vs rejected response relative to a reference model.`,
         related: ['rlhf', 'fine-tuning'],
         tags: ['alignment', 'simplified'],
         codeExample: `# DPO Loss
 def dpo_loss(policy, reference, query, chosen, rejected, beta=0.1):
-    # Log probs
     pi_chosen = policy.log_prob(query, chosen)
     pi_rejected = policy.log_prob(query, rejected)
     ref_chosen = reference.log_prob(query, chosen)
     ref_rejected = reference.log_prob(query, rejected)
     
-    # Log ratios
     pi_logratios = pi_chosen - pi_rejected
     ref_logratios = ref_chosen - ref_rejected
     
@@ -901,7 +841,6 @@ prompt = """
 Question: If I have 3 apples and eat 1, how many are left?
 Let's think step by step.
 """`
-
     },
     {
         id: 'tree-of-thoughts',
@@ -924,7 +863,6 @@ def tree_of_thoughts(prompt, llm):
             for thought in parse(thoughts):
                 score = llm.evaluate(thought)
                 new_states.append((score, state + thought))
-        # Keep best 3 states
         states = sorted(new_states, reverse=True)[:3]
     return states[0]`
     },
@@ -938,8 +876,9 @@ def tree_of_thoughts(prompt, llm):
 **Techniques:** Role Prompting ("You are an expert..."), Few-Shot (Examples), Structured Output (JSON mode), and Context Management (retrieving relevant context).`,
         related: ['few-shot', 'chain-of-thought'],
         tags: ['fundamental', 'optimization'],
+        // FIX: Removed problematic backticks that caused SyntaxError
         codeExample: `# Advanced Prompt
-prompt = """
+PROMPT = """
 Role: You are a Python Expert.
 Task: Write a function to sort a list.
 
@@ -949,10 +888,10 @@ Constraints:
 - Handle edge cases (None, empty list)
 
 Output Format:
-def function(...): ...
-"""
-`
-
+def function(args):
+    # Implementation
+    return result
+"""`
     },
 
     // ========== INFRASTRUCTURE SECTION ==========
@@ -1005,11 +944,10 @@ model = AutoModelForCausalLM.from_pretrained("model", quantization_config=config
         related: ['inference', 'attention-mechanism'],
         tags: ['optimization', 'memory'],
         codeExample: `# Paged Attention (vLLM handles internally)
-# Concept: Virtual memory blocks for KV cache
 class PagedKVCache:
     def __init__(self, block_size=16):
-        self.blocks = {} # physical blocks
-        self.block_tables = {} # mapping`
+        self.blocks = {}
+        self.block_tables = {}`
     },
 
     // ========== APPLICATIONS SECTION ==========
@@ -1059,7 +997,7 @@ print(prefix + middle + suffix)`
 // ==========================================
 const KnowledgeBase = {
     meta: {
-        version: '2.1.0',
+        version: '2.1.1', // Bumped version
         lastUpdated: '2025-01-15',
         description: 'Interactive AI Knowledge Graph - God Mode'
     },
@@ -1067,16 +1005,80 @@ const KnowledgeBase = {
     terms: TermData.map(t => createTerm(t))
 };
 
+// ==========================================
+// UTILITY FUNCTIONS
+// ==========================================
 const KnowledgeUtils = {
-    addCategory(c) { if (!KnowledgeBase.categories.find(x => x.id === c.id)) KnowledgeBase.categories.push(c); },
-    addTerm(t) { if (!KnowledgeBase.terms.find(x => x.id === t.id)) KnowledgeBase.terms.push(createTerm(t)); },
-    getTerm(id) { return KnowledgeBase.terms.find(t => t.id === id); },
-    getTermsByCategory(cid) { return KnowledgeBase.terms.filter(t => t.category === cid); },
-    getRelatedTerms(tid) { const t = this.getTerm(tid); return t?.related?.map(r => this.getTerm(r)).filter(Boolean) || []; },
-    searchTerms(q) { if (!q) return KnowledgeBase.terms; const lq = q.toLowerCase(); return KnowledgeBase.terms.filter(t => t.name.toLowerCase().includes(lq) || t.shortDesc.toLowerCase().includes(lq)); },
-    getStats() { return { categories: KnowledgeBase.categories.length, terms: KnowledgeBase.terms.length, connections: KnowledgeBase.terms.reduce((s, t) => s + (t.related?.length || 0), 0), byCategory: KnowledgeBase.categories.reduce((a, c) => { a[c.id] = this.getTermsByCategory(c.id).length; return a; }, {}) }; }
+    addCategory(category) {
+        if (!category.id || !category.name) return false;
+        if (KnowledgeBase.categories.find(c => c.id === category.id)) return false;
+        KnowledgeBase.categories.push({...category});
+        return true;
+    },
+
+    addTerm(termConfig) {
+        if (!termConfig.id || !termConfig.name) return false;
+        if (KnowledgeBase.terms.find(t => t.id === termConfig.id)) return false;
+        KnowledgeBase.terms.push(createTerm(termConfig));
+        return true;
+    },
+
+    getTerm(id) {
+        return KnowledgeBase.terms.find(t => t.id === id);
+    },
+
+    getTermsByCategory(categoryId) {
+        return KnowledgeBase.terms.filter(t => t.category === categoryId);
+    },
+
+    getRelatedTerms(termId) {
+        const term = this.getTerm(termId);
+        if (!term || !term.related) return [];
+        return term.related.map(r => this.getTerm(r)).filter(Boolean);
+    },
+
+    searchTerms(query) {
+        if (!query) return KnowledgeBase.terms;
+        const q = query.toLowerCase();
+        return KnowledgeBase.terms.filter(t => 
+            t.name.toLowerCase().includes(q) ||
+            t.shortDesc.toLowerCase().includes(q) ||
+            t.fullName.toLowerCase().includes(q) ||
+            t.tags.some(tag => tag.toLowerCase().includes(q))
+        );
+    },
+
+    getStats() {
+        return {
+            categories: KnowledgeBase.categories.length,
+            terms: KnowledgeBase.terms.length,
+            connections: KnowledgeBase.terms.reduce((sum, t) => sum + (t.related?.length || 0), 0),
+            byCategory: KnowledgeBase.categories.reduce((acc, cat) => {
+                acc[cat.id] = this.getTermsByCategory(cat.id).length;
+                return acc;
+            }, {})
+        };
+    },
+
+    export() {
+        return JSON.stringify(KnowledgeBase, null, 2);
+    },
+
+    import(jsonString) {
+        try {
+            const data = JSON.parse(jsonString);
+            if (data.categories && data.terms) {
+                KnowledgeBase.categories = data.categories;
+                KnowledgeBase.terms = data.terms;
+                return true;
+            }
+        } catch (e) {
+            console.error('Import failed:', e);
+        }
+        return false;
+    }
 };
 
-console.log('KnowledgeBase loaded:', KnowledgeBase.categories.length, 'cats,', KnowledgeBase.terms.length, 'terms');
+console.log('KnowledgeBase loaded:', KnowledgeBase.categories.length, 'categories,', KnowledgeBase.terms.length, 'terms');
 window.KnowledgeBase = KnowledgeBase;
 window.KnowledgeUtils = KnowledgeUtils;
