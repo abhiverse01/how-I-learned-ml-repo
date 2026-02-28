@@ -22,130 +22,113 @@
 
 </p>
 
- 
-
 # 🌐 Live Demo
 
-> 🚀 **Experience TitanML in action**
+> 🚀 Experience TitanML in action
 
-🔗 **Live Preview:**  
-https://abhiverse01.github.io/titanML/
-
+🔗 **Live Preview:**
+[https://abhiverse01.github.io/titanML/](https://abhiverse01.github.io/titanML/)
 
 # 🚀 What is TitanML?
 
 TitanML is a **zero-dependency, physics-powered AI knowledge graph engine**.
 
-Instead of reading AI topics linearly, TitanML lets you:
+Instead of consuming AI topics linearly, TitanML lets you:
 
-- 🌌 Explore AI concepts visually  
-- 🔗 Understand relationships between models and methods  
-- 🧠 Navigate Artificial Intelligence as a connected ecosystem  
-- ⚡ Interact with a real-time force simulation  
+* 🌌 Explore AI concepts visually
+* 🔗 Understand relationships between models, methods, and paradigms
+* 🧠 Navigate Artificial Intelligence as a connected ecosystem
+* ⚡ Interact with a real-time force simulation
 
-No frameworks.  
-No libraries.  
-Just engineering.
+No frameworks.
+No external libraries.
+Pure engineering.
 
- 
 
 # ✨ Core Features
 
 ## ⚛️ Force-Directed Graph Engine
-Custom-built physics simulation for natural node positioning.
 
-- Attraction & repulsion forces  
-- Organic layout behaviour  
-- Smooth transitions  
-- Real-time simulation  
+Custom-built physics simulation for natural node positioning:
 
- 
+* Attraction & repulsion forces
+* Organic layout behaviour
+* Smooth transitions
+* Real-time simulation loop
 
-## 🎨 God Mode Canvas Rendering
-High-performance **HTML5 Canvas engine** featuring:
+## 🎨 High-Performance Canvas Rendering
 
-- Directional relationship arrows  
-- Category-based gradient colouring  
-- HiDPI / Retina optimisation  
-- Animated link flows  
-- Smooth zoom & drag  
+Optimized **HTML5 Canvas engine** featuring:
 
- 
-
+* Directional relationship arrows
+* Category-based gradient colouring
+* HiDPI / Retina optimization
+* Animated link flows
+* Smooth zoom & drag interactions
+* 
 ## 🧩 Extensible Knowledge Architecture
+
 Add new AI concepts instantly via a simple data object.
 
-No need to modify rendering logic.
-
- 
+No rendering logic modification required.
 
 ## 🔗 Deep Linking
-Each node is directly addressable:
+
+Each node is directly addressable via URL hash:
 
 ```
-
 #rag
 #transformers
 #llm
-
 ```
 
 Perfect for sharing specific AI concepts.
 
- 
+## 🧭 Navigation History (SPA Support)
 
-## 🧭 Navigation History
-Full browser history support within the SPA:
-
-- Back / Forward navigation  
-- URL state persistence  
-- Shareable graph positions  
-
- 
+* Back / Forward browser navigation
+* URL state persistence
+* Shareable graph states
 
 ## 📱 Responsive & Accessible
-Modern glassmorphism UI designed for:
 
-- Desktop  
-- Tablet  
-- Mobile  
+Modern glassmorphism UI optimised for:
+
+* Desktop
+* Tablet
+* Mobile
 
 Keyboard-first navigation is supported.
-
- 
 
 # 🏗 Architecture
 
 TitanML follows a modular separation of concerns.
 
 ```
-
 titanML/
 │
-├── index.html          # Application shell
+├── index.html              # Application shell
 │
 ├── assets/
-│   ├── titanML.png     # Banner
-│   └── preview.gif     # Demo animation
+│   ├── TitanML.png         # Banner
+│   └── preview.gif         # Demo animation
 │
 ├── css/
-│   └── styles.css      # Design system & UI styling
+│   └── styles.css          # Design system & UI styling
 │
 └── js/
-├── data.js         # Knowledge base (extensible)
-├── graph.js        # Physics engine & canvas renderer
-└── app.js          # State management & UI logic
-
-````
+    ├── data.js             # Knowledge base (extensible)
+    ├── graph.js            # Physics engine & canvas renderer
+    └── app.js              # State management & UI logic
+```
 
 ### Design Philosophy
 
-- Single Responsibility per module  
-- No framework lock-in  
-- Maximum performance  
-- Educational clarity  
-
- 
+* Single Responsibility per module
+* No framework lock-in
+* Maximum performance
+* Educational clarity
+* Scalable knowledge abstraction
 
 # ⚡ Quick Start
 
@@ -156,9 +139,9 @@ No installation required.
 ```bash
 git clone https://github.com/abhiverse01/titanML.git
 cd titanML
-````
+```
 
-## 2️⃣ Open the app
+## 2️⃣ Run the app
 
 Simply open:
 
@@ -172,7 +155,13 @@ Or serve locally:
 python -m http.server
 ```
 
- 
+Then visit:
+
+```
+http://localhost:8000
+```
+
+---
 
 # 🧠 Adding New AI Concepts
 
@@ -199,10 +188,9 @@ That’s it.
 The engine automatically renders:
 
 * The node
-* Its connections
-* Its physics interactions
-
- 
+* Its relationships
+* Physics interactions
+* Visual styling
 
 # 🎯 Roadmap
 
@@ -222,7 +210,7 @@ The engine automatically renders:
 
 ## 🔹 Phase 3 — AI-Enhanced Graph
 
-* Dynamic embedding-based relationship generation
+* Embedding-based relationship generation
 * Concept recommendation engine
 * Graph-based learning mode
 
@@ -231,8 +219,6 @@ The engine automatically renders:
 * Plugin architecture
 * Multi-domain knowledge graphs
 * Research visualisation tools
-
- 
 
 # 🤝 Contributing
 
@@ -250,22 +236,19 @@ Contributions are welcome.
 * Add new AI domains
 * Improve physics tuning
 * Enhance UI/UX polish
-* Add performance optimisations
-* Create learning overlays
-
- 
+* Optimize rendering performance
+* Build learning overlays
 
 # 🛠 Tech Stack
 
 | Layer        | Technology                   |
-|              |                              |
+| ------------ | ---------------------------- |
 | Engine       | Vanilla JavaScript (ES6+)    |
 | Rendering    | HTML5 Canvas                 |
 | Styling      | CSS Variables + Flexbox/Grid |
-| Architecture | Modular ES structure         |
+| Architecture | Modular ES Structure         |
 | Fonts        | Plus Jakarta Sans            |
 
- 
 
 # 🧭 Vision
 
@@ -282,10 +265,8 @@ Future direction includes:
 
 * AI research mapping
 * Learning path generation
-* Curriculum visualizers
+* Curriculum visualization
 * Concept evolution timelines
-
- 
 
 # 👨‍💻 Creator
 
@@ -301,16 +282,12 @@ AI Engineer • Systems Thinker • Builder
 📧 Email
 [abhishek.aimarine@gmail.com](mailto:abhishek.aimarine@gmail.com)
 
- 
-
 # 📄 License
 
 This project is licensed under the MIT License.
 
- 
-
 <p align="center">
-  <b>Built with precision, curiosity, and a deep respect for intelligence.</b>
+  <b>Built with precision, curiosity, and deep respect for intelligence.</b>
   <br/>
   If you found this project valuable, consider ⭐ starring the repository.
 </p>
