@@ -3,13 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TitanML</title>
+    <title>TitanML - AI Knowledge Nexus</title>
+    
+    <!-- GOD MODE: SEO & Social Meta Tags -->
+    <meta name="description" content="An interactive knowledge graph and visual encyclopedia for Artificial Intelligence concepts, created by Abhishek Shah.">
+    <meta name="keywords" content="AI, Machine Learning, Knowledge Graph, RAG, LLM, Agentic AI, Abhishek Shah">
+    <meta name="author" content="Abhishek Shah">
+    
+    <!-- Open Graph / Social Cards -->
+    <meta property="og:title" content="TitanML - AI Knowledge Nexus">
+    <meta property="og:description" content="Interactive visual encyclopedia of AI concepts, terms, and relationships.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://abhiverse01.github.io">
+    <meta property="og:image" content="https://avatars.githubusercontent.com/u/23054200?v=4"> <!-- Example placeholder -->
+    
+    <!-- GOD MODE: Inline SVG Favicon (No file needed) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+    
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <link rel="stylesheet" href="css/styles.css">
+
+    <!-- GOD MODE: Inline Styles for New Footer & Loader -->
+    <style>
+        /* Loader Styles */
+        #initial-loader {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-primary, #f8fafc);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+        #initial-loader.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .loader-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e2e8f0;
+            border-top-color: #0891b2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Sidebar Footer Styles */
+        .sidebar-footer {
+            padding: 16px;
+            border-top: 1px solid var(--border-light, #e2e8f0);
+            background: var(--bg-secondary, #ffffff);
+            margin-top: auto;
+        }
+        
+        .creator-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .creator-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0891b2, #6366f1);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        
+        .creator-info h4 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary, #0f172a);
+            margin: 0;
+        }
+        
+        .creator-info p {
+            font-size: 11px;
+            color: var(--text-muted, #94a3b8);
+            margin: 2px 0 0 0;
+        }
+        
+        .creator-links {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .creator-link {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px;
+            background: var(--bg-tertiary, #f1f5f9);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-secondary, #475569);
+            font-size: 11px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .creator-link:hover {
+            background: var(--bg-active, #e2e8f0);
+            color: var(--accent-primary, #0891b2);
+            transform: translateY(-1px);
+        }
+        
+        .creator-link svg {
+            width: 14px;
+            height: 14px;
+        }
+        
+        .copyright-text {
+            text-align: center;
+            font-size: 10px;
+            color: var(--text-muted, #94a3b8);
+            opacity: 0.7;
+        }
+    </style>
 </head>
 <body>
+    <!-- Initial Loader -->
+    <div id="initial-loader">
+        <div class="loader-spinner"></div>
+        <p style="margin-top: 16px; color: #64748b; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px;">Initializing Knowledge Base...</p>
+    </div>
+
     <div id="app" class="app">
         <!-- Header -->
         <header class="header">
@@ -56,44 +192,82 @@
         <div class="layout">
             <!-- Sidebar -->
             <aside class="sidebar" id="sidebar">
-                <div class="sidebar-section">
-                    <h3 class="sidebar-title">Categories</h3>
-                    <div class="category-list" id="categoryList"></div>
-                </div>
-                
-                <div class="sidebar-section">
-                    <h3 class="sidebar-title">Quick Filters</h3>
-                    <div class="filter-list" id="filterList">
-                        <div class="filter-item active" data-filter="all">
-                            <div class="filter-dot" style="background: var(--accent-primary);"></div>
-                            <span>All Terms</span>
-                            <span class="filter-count" id="totalCount">0</span>
+                <!-- Make sidebar flex column to push footer down -->
+                <div style="display: flex; flex-direction: column; height: 100%;">
+                    <div style="flex: 1; overflow-y: auto;">
+                        <div class="sidebar-section">
+                            <h3 class="sidebar-title">Categories</h3>
+                            <div class="category-list" id="categoryList"></div>
                         </div>
-                        <div class="filter-item" data-filter="core">
-                            <div class="filter-dot" style="background: var(--accent-warning);"></div>
-                            <span>Core Concepts</span>
+                        
+                        <div class="sidebar-section">
+                            <h3 class="sidebar-title">Quick Filters</h3>
+                            <div class="filter-list" id="filterList">
+                                <div class="filter-item active" data-filter="all">
+                                    <div class="filter-dot" style="background: var(--accent-primary);"></div>
+                                    <span>All Terms</span>
+                                    <span class="filter-count" id="totalCount">0</span>
+                                </div>
+                                <div class="filter-item" data-filter="core">
+                                    <div class="filter-dot" style="background: var(--accent-warning);"></div>
+                                    <span>Core Concepts</span>
+                                </div>
+                                <div class="filter-item" data-filter="technique">
+                                    <div class="filter-dot" style="background: var(--accent-secondary);"></div>
+                                    <span>Techniques</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="filter-item" data-filter="technique">
-                            <div class="filter-dot" style="background: var(--accent-secondary);"></div>
-                            <span>Techniques</span>
+                        
+                        <div class="sidebar-section">
+                            <h3 class="sidebar-title">Statistics</h3>
+                            <div class="stats-grid">
+                                <div class="stat-card">
+                                    <div class="stat-value" id="statCategories">0</div>
+                                    <div class="stat-label">Categories</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value" id="statTerms">0</div>
+                                    <div class="stat-label">Terms</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value" id="statConnections">0</div>
+                                    <div class="stat-label">Connections</div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-                
-                <div class="sidebar-section">
-                    <h3 class="sidebar-title">Statistics</h3>
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-value" id="statCategories">0</div>
-                            <div class="stat-label">Categories</div>
+                    </div> <!-- End scroll area -->
+
+                    <!-- GOD MODE: Creator Footer -->
+                    <div class="sidebar-footer">
+                        <div class="creator-card">
+                            <div class="creator-avatar">AS</div>
+                            <div class="creator-info">
+                                <h4>Abhishek Shah</h4>
+                                <p>Creator & Developer</p>
+                            </div>
                         </div>
-                        <div class="stat-card">
-                            <div class="stat-value" id="statTerms">0</div>
-                            <div class="stat-label">Terms</div>
+                        
+                        <div class="creator-links">
+                            <a href="mailto:abhishek.aimarine@gmail.com" class="creator-link" title="Email">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                    <polyline points="22,6 12,13 2,6"/>
+                                </svg>
+                                Email
+                            </a>
+                            <a href="https://abhiverse01.github.io" target="_blank" class="creator-link" title="Portfolio">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                    <polyline points="15 3 21 3 21 9"/>
+                                    <line x1="10" y1="14" x2="21" y2="3"/>
+                                </svg>
+                                Portfolio
+                            </a>
                         </div>
-                        <div class="stat-card">
-                            <div class="stat-value" id="statConnections">0</div>
-                            <div class="stat-label">Connections</div>
+                        
+                        <div class="copyright-text">
+                            &copy; 2025 Abhishek Shah. All rights reserved.
                         </div>
                     </div>
                 </div>
@@ -263,6 +437,12 @@
                     setTimeout(function() {
                         if (window.app && window.app.initialized) {
                             console.log("🚀 APP IS RUNNING.");
+                            console.log("👋 Created by Abhishek Shah (abhiverse01.github.io)");
+                            
+                            // Hide the loader
+                            var loader = document.getElementById('initial-loader');
+                            if (loader) loader.classList.add('hidden');
+                            
                         } else {
                             console.error("❌ APP FAILED: Scripts loaded, but App did not initialize. Check for syntax errors inside JS files.");
                         }
