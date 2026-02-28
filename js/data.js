@@ -21,7 +21,7 @@ function createTerm(config) {
         createdAt: config.createdAt || new Date().toISOString(),
         importance: config.importance || 0
     };
-};
+}
 
 // ==========================================
 // CATEGORY DEFINITIONS
@@ -572,7 +572,7 @@ def query_database(sql: str) -> str:
         category: 'mcp',
         type: 'technique',
         shortDesc: 'URI-addressable data via MCP',
-        definition: `MCP Resources provide a file-like interface to data. Accessible via URIs (e.g., `file:///logs/app.log` or `postgres://db/users`). Supports listing and reading.`,
+        definition: `MCP Resources provide a file-like interface to data. Accessible via URIs (e.g., \`file:///logs/app.log\` or \`postgres://db/users\`). Supports listing and reading.`,
         related: ['mcp', 'context-window'],
         tags: ['data', 'read-only'],
         codeExample: `# MCP Resource Template
