@@ -45,7 +45,7 @@ No build tools or installations required.
 
 1.  **Clone the repo**
     ```bash
-    git clone https://github.com/abhiverse01/ai-knowledge-nexus.git
+    git clone https://github.com/abhiverse01/titanML.git
     ```
 2.  **Open `index.html`**
     Simply double-click `index.html` or serve it locally.
