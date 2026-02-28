@@ -1178,3 +1178,218 @@ body {
         scroll-behavior: auto !important;
     }
 }
+
+
+/* ==========================================
+   TITANML OPTIMIZATION PATCH (NON-BREAKING)
+   ========================================== */
+
+/* -------------------------------
+   1️⃣ FIX DOUBLE POSITION DECLARATIONS
+-------------------------------- */
+.content {
+    position: relative; /* remove duplicate declaration issue */
+}
+
+/* -------------------------------
+   2️⃣ STABLE MOBILE VIEWPORT FIX
+   Fixes iOS 100vh jump + header issues
+-------------------------------- */
+.app {
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+
+@supports (height: 100svh) {
+    .app {
+        height: 100svh;
+    }
+}
+
+/* -------------------------------
+   3️⃣ HEADER HEIGHT CONSISTENCY
+-------------------------------- */
+.header {
+    box-sizing: border-box;
+}
+
+/* Prevent layout shift when safe-area = 0 */
+@supports not (padding: env(safe-area-inset-top)) {
+    .header {
+        padding-top: 0;
+    }
+}
+
+/* -------------------------------
+   4️⃣ SIDEBAR PERFORMANCE BOOST
+-------------------------------- */
+.sidebar {
+    will-change: transform;
+    backface-visibility: hidden;
+}
+
+/* Prevent hidden sidebar from blocking clicks */
+.sidebar.collapsed {
+    pointer-events: none;
+}
+
+.sidebar.open {
+    pointer-events: auto;
+}
+
+/* -------------------------------
+   5️⃣ PANEL GPU SMOOTHNESS
+-------------------------------- */
+.panel {
+    will-change: transform;
+    backface-visibility: hidden;
+}
+
+/* -------------------------------
+   6️⃣ RIPPLE FIX (clean animation)
+-------------------------------- */
+.btn::after {
+    pointer-events: none;
+}
+
+.btn:active::after {
+    opacity: 0.4;
+}
+
+/* -------------------------------
+   7️⃣ CANVAS RENDER STABILITY
+-------------------------------- */
+#graphCanvas {
+    display: block; /* removes inline canvas gap */
+}
+
+/* -------------------------------
+   8️⃣ CODE BLOCK OVERFLOW FIX
+-------------------------------- */
+.code-block code {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+/* -------------------------------
+   9️⃣ MODAL MOBILE STABILITY
+-------------------------------- */
+@media (max-width: 640px) {
+    .modal {
+        width: 100%;
+        left: 0;
+        right: 0;
+    }
+}
+
+/* -------------------------------
+   🔟 SEARCH INPUT VISUAL POLISH
+-------------------------------- */
+.search-input {
+    backdrop-filter: blur(4px);
+}
+
+.search-input:focus + .search-icon {
+    color: var(--accent-primary);
+}
+
+/* -------------------------------
+   1️⃣1️⃣ LEGEND MICRO POLISH
+-------------------------------- */
+.legend {
+    transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.legend:hover {
+    transform: translateY(-2px);
+}
+
+/* -------------------------------
+   1️⃣2️⃣ GRAPH CONTROLS POLISH
+-------------------------------- */
+.graph-controls {
+    backdrop-filter: blur(16px);
+}
+
+.control-btn:active {
+    transform: scale(0.95);
+}
+
+/* -------------------------------
+   1️⃣3️⃣ TOOLTIP PERFORMANCE
+-------------------------------- */
+.tooltip {
+    will-change: transform, opacity;
+}
+
+/* -------------------------------
+   1️⃣4️⃣ SCROLL SMOOTHNESS
+-------------------------------- */
+.sidebar-scroll,
+.panel,
+.modal-form {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* -------------------------------
+   1️⃣5️⃣ HIGH-END VISUAL DEPTH
+   Subtle but powerful
+-------------------------------- */
+.header {
+    box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset,
+                0 1px 3px rgba(0,0,0,0.04);
+}
+
+.panel {
+    background:
+        linear-gradient(to bottom,
+        rgba(255,255,255,0.98),
+        rgba(255,255,255,0.96));
+}
+
+/* -------------------------------
+   1️⃣6️⃣ REDUCE MOBILE GRAPH CONTROLS CLUTTER
+-------------------------------- */
+@media (max-width: 480px) {
+    .graph-controls {
+        bottom: 16px;
+        transform: translateX(-50%) scale(0.95);
+    }
+}
+
+/* -------------------------------
+   1️⃣7️⃣ PREVENT Z-INDEX EDGE CASES
+-------------------------------- */
+.modal-overlay {
+    isolation: isolate;
+}
+
+.header {
+    isolation: isolate;
+}
+
+/* -------------------------------
+   1️⃣8️⃣ OPTIONAL MICRO-INTERACTION UPGRADE
+-------------------------------- */
+.category-item,
+.related-item,
+.creator-link,
+.stat-card {
+    transition:
+        transform var(--transition-fast),
+        background var(--transition-fast),
+        box-shadow var(--transition-fast),
+        border-color var(--transition-fast);
+}
+
+/* -------------------------------
+   1️⃣9️⃣ REDUCE GLASS JITTER ON LOW END DEVICES
+-------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+    .logo-icon:hover,
+    .btn-primary:hover,
+    .stat-card:hover,
+    .related-item:hover {
+        transform: none;
+    }
+}
