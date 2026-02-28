@@ -1,5 +1,5 @@
 /**
- * AI Knowledge Nexus - Main Application
+ * AI Knowledge Nexus - Main Application (FIXED)
  */
 
 class App {
@@ -8,15 +8,13 @@ class App {
         this.state = {
             searchQuery: '',
             selectedCategory: null,
-            selectedTerm: null,
-            sidebarOpen: true
+            selectedTerm: null
         };
-        
-        this.init();
+        this.initialized = false;
     }
     
     init() {
-        // Wait for DOM and KnowledgeBase
+        // Wait for DOM ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => this.setup());
         } else {
@@ -25,11 +23,27 @@ class App {
     }
     
     setup() {
+        console.log('Setting up app...');
+        
+        // Check dependencies
+        if (!window.KnowledgeBase) {
+            console.error('KnowledgeBase not loaded');
+            return;
+        }
+        if (!window.KnowledgeGraph) {
+            console.error('KnowledgeGraph not loaded');
+            return;
+        }
+        if (!window.KnowledgeUtils) {
+            console.error('KnowledgeUtils not loaded');
+            return;
+        }
+        
         // Initialize graph
         this.graph = new KnowledgeGraph('graphCanvas');
         this.graph.loadData();
         
-        // Setup callbacks
+        // Set callbacks
         this.graph.onNodeSelect = (term) => this.showTermDetail(term);
         this.graph.onHoverChange = (node, e) => this.handleHover(node, e);
         
@@ -39,117 +53,147 @@ class App {
         this.updateStats();
         this.populateCategorySelect();
         
-        // Setup event listeners
-        this.setupEventListeners();
+        // Bind events
+        this.bindEvents();
+        
+        this.initialized = true;
+        console.log('App initialized');
     }
     
-    setupEventListeners() {
+    bindEvents() {
         // Search
         const searchInput = document.getElementById('searchInput');
-        searchInput.addEventListener('input', (e) => {
-            this.state.searchQuery = e.target.value;
-            this.graph.highlightNodes(this.state.searchQuery);
-        });
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this.state.searchQuery = e.target.value;
+                if (this.graph) this.graph.highlightNodes(this.state.searchQuery);
+            });
+        }
         
-        // Keyboard shortcut
+        // Keyboard
         document.addEventListener('keydown', (e) => {
             if (e.key === '/' && document.activeElement !== searchInput) {
                 e.preventDefault();
-                searchInput.focus();
+                if (searchInput) searchInput.focus();
             }
             if (e.key === 'Escape') {
                 this.closeDetailPanel();
                 this.closeModal();
-                searchInput.blur();
+                if (searchInput) searchInput.blur();
             }
         });
         
         // Sidebar toggle
-        document.getElementById('toggleSidebar').addEventListener('click', () => {
-            document.getElementById('sidebar').classList.toggle('collapsed');
-        });
+        const toggleBtn = document.getElementById('toggleSidebar');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                document.getElementById('sidebar').classList.toggle('collapsed');
+            });
+        }
         
-        // Category selection
-        document.getElementById('categoryList').addEventListener('click', (e) => {
-            const item = e.target.closest('.category-item');
-            if (!item) return;
-            
-            const categoryId = item.dataset.category;
-            
-            document.querySelectorAll('.category-item').forEach(i => i.classList.remove('active'));
-            
-            if (this.state.selectedCategory === categoryId) {
-                this.state.selectedCategory = null;
-                this.graph.filterByCategory(null);
-            } else {
-                item.classList.add('active');
-                this.state.selectedCategory = categoryId;
-                this.graph.filterByCategory(categoryId);
-            }
-        });
+        // Category list
+        const categoryList = document.getElementById('categoryList');
+        if (categoryList) {
+            categoryList.addEventListener('click', (e) => {
+                const item = e.target.closest('.category-item');
+                if (!item) return;
+                
+                document.querySelectorAll('.category-item').forEach(i => i.classList.remove('active'));
+                
+                const categoryId = item.dataset.category;
+                if (this.state.selectedCategory === categoryId) {
+                    this.state.selectedCategory = null;
+                    if (this.graph) this.graph.filterByCategory(null);
+                } else {
+                    item.classList.add('active');
+                    this.state.selectedCategory = categoryId;
+                    if (this.graph) this.graph.filterByCategory(categoryId);
+                }
+            });
+        }
         
         // Filters
-        document.getElementById('filterList').addEventListener('click', (e) => {
-            const item = e.target.closest('.filter-item');
-            if (!item) return;
-            
-            document.querySelectorAll('.filter-item').forEach(i => i.classList.remove('active'));
-            item.classList.add('active');
-            
-            const filter = item.dataset.filter;
-            if (filter === 'all') {
-                this.state.selectedCategory = null;
-                this.graph.filterByCategory(null);
-            } else if (filter === 'core') {
-                this.graph.nodes.forEach(n => n.visible = n.term.type === 'core');
-            } else if (filter === 'technique') {
-                this.graph.nodes.forEach(n => n.visible = n.term.type === 'technique');
-            }
-        });
+        const filterList = document.getElementById('filterList');
+        if (filterList) {
+            filterList.addEventListener('click', (e) => {
+                const item = e.target.closest('.filter-item');
+                if (!item) return;
+                
+                document.querySelectorAll('.filter-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                
+                const filter = item.dataset.filter;
+                if (this.graph) {
+                    if (filter === 'all') {
+                        this.state.selectedCategory = null;
+                        this.graph.nodes.forEach(n => n.visible = true);
+                    } else {
+                        this.graph.nodes.forEach(n => n.visible = n.term.type === filter);
+                    }
+                }
+            });
+        }
         
         // Graph controls
-        document.getElementById('zoomIn').addEventListener('click', () => this.graph.zoomIn());
-        document.getElementById('zoomOut').addEventListener('click', () => this.graph.zoomOut());
-        document.getElementById('resetView').addEventListener('click', () => this.graph.resetView());
+        const zoomIn = document.getElementById('zoomIn');
+        const zoomOut = document.getElementById('zoomOut');
+        const resetView = document.getElementById('resetView');
+        
+        if (zoomIn) zoomIn.addEventListener('click', () => this.graph && this.graph.zoomIn());
+        if (zoomOut) zoomOut.addEventListener('click', () => this.graph && this.graph.zoomOut());
+        if (resetView) resetView.addEventListener('click', () => this.graph && this.graph.resetView());
         
         // Detail panel
-        document.getElementById('closePanel').addEventListener('click', () => this.closeDetailPanel());
+        const closePanel = document.getElementById('closePanel');
+        if (closePanel) {
+            closePanel.addEventListener('click', () => this.closeDetailPanel());
+        }
         
-        // Related term clicks
-        document.getElementById('relatedTerms').addEventListener('click', (e) => {
-            const item = e.target.closest('.related-item');
-            if (!item) return;
-            
-            const termId = item.dataset.termId;
-            const term = KnowledgeUtils.getTerm(termId);
-            if (term) {
-                this.showTermDetail(term);
-                this.graph.selectedNode = this.graph.findNode(termId);
-            }
-        });
+        // Related terms
+        const relatedTerms = document.getElementById('relatedTerms');
+        if (relatedTerms) {
+            relatedTerms.addEventListener('click', (e) => {
+                const item = e.target.closest('.related-item');
+                if (!item) return;
+                
+                const termId = item.dataset.termId;
+                const term = KnowledgeUtils.getTerm(termId);
+                if (term) {
+                    this.showTermDetail(term);
+                    if (this.graph) this.graph.selectedNode = this.graph.findNode(termId);
+                }
+            });
+        }
         
         // Add term modal
-        document.getElementById('addTermBtn').addEventListener('click', () => this.openModal());
-        document.getElementById('closeModal').addEventListener('click', () => this.closeModal());
-        document.getElementById('cancelAdd').addEventListener('click', () => this.closeModal());
-        document.getElementById('addModal').addEventListener('click', (e) => {
-            if (e.target.id === 'addModal') this.closeModal();
-        });
+        const addTermBtn = document.getElementById('addTermBtn');
+        const closeModalBtn = document.getElementById('closeModal');
+        const cancelAdd = document.getElementById('cancelAdd');
+        const addModal = document.getElementById('addModal');
+        
+        if (addTermBtn) addTermBtn.addEventListener('click', () => this.openModal());
+        if (closeModalBtn) closeModalBtn.addEventListener('click', () => this.closeModal());
+        if (cancelAdd) cancelAdd.addEventListener('click', () => this.closeModal());
+        if (addModal) {
+            addModal.addEventListener('click', (e) => {
+                if (e.target.id === 'addModal') this.closeModal();
+            });
+        }
         
         // Add term form
-        document.getElementById('addTermForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleAddTerm(new FormData(e.target));
-        });
-        
-        // Window resize
-        window.addEventListener('resize', () => {
-            this.graph.handleResize();
-        });
+        const addTermForm = document.getElementById('addTermForm');
+        if (addTermForm) {
+            addTermForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleAddTerm(new FormData(e.target));
+            });
+        }
     }
     
     renderCategories() {
         const container = document.getElementById('categoryList');
+        if (!container || !window.KnowledgeUtils) return;
+        
         const stats = KnowledgeUtils.getStats();
         
         container.innerHTML = KnowledgeBase.categories.map(cat => `
@@ -163,6 +207,7 @@ class App {
     
     renderLegend() {
         const container = document.getElementById('legendItems');
+        if (!container || !window.KnowledgeBase) return;
         
         container.innerHTML = KnowledgeBase.categories.map(cat => `
             <div class="legend-item">
@@ -173,77 +218,109 @@ class App {
     }
     
     updateStats() {
+        if (!window.KnowledgeUtils) return;
+        
         const stats = KnowledgeUtils.getStats();
-        document.getElementById('statCategories').textContent = stats.categories;
-        document.getElementById('statTerms').textContent = stats.terms;
-        document.getElementById('statConnections').textContent = stats.connections;
-        document.getElementById('totalCount').textContent = stats.terms;
+        
+        const statCategories = document.getElementById('statCategories');
+        const statTerms = document.getElementById('statTerms');
+        const statConnections = document.getElementById('statConnections');
+        const totalCount = document.getElementById('totalCount');
+        
+        if (statCategories) statCategories.textContent = stats.categories;
+        if (statTerms) statTerms.textContent = stats.terms;
+        if (statConnections) statConnections.textContent = stats.connections;
+        if (totalCount) totalCount.textContent = stats.terms;
     }
     
     populateCategorySelect() {
         const select = document.getElementById('categorySelect');
+        if (!select || !window.KnowledgeBase) return;
+        
         select.innerHTML = KnowledgeBase.categories.map(cat => 
             `<option value="${cat.id}">${cat.name}</option>`
         ).join('');
     }
     
     showTermDetail(term) {
+        if (!term) return;
+        
         const panel = document.getElementById('detailPanel');
+        if (!panel) return;
+        
         const category = KnowledgeBase.categories.find(c => c.id === term.category);
         
-        // Update content
-        document.getElementById('panelBadge').textContent = category ? category.name : 'General';
-        document.getElementById('panelBadge').style.color = category ? category.color : '#6b7280';
-        document.getElementById('panelBadge').style.background = category ? category.color + '15' : '#f3f4f6';
-        document.getElementById('panelTitle').textContent = term.fullName || term.name;
-        document.getElementById('panelSubtitle').textContent = term.shortDesc;
-        document.getElementById('panelDefinition').textContent = term.definition;
+        // Badge
+        const badge = document.getElementById('panelBadge');
+        if (badge) {
+            badge.textContent = category ? category.name : 'General';
+            badge.style.color = category ? category.color : '#6b7280';
+            badge.style.background = category ? category.color + '15' : '#f3f4f6';
+        }
+        
+        // Title & subtitle
+        const title = document.getElementById('panelTitle');
+        const subtitle = document.getElementById('panelSubtitle');
+        if (title) title.textContent = term.fullName || term.name;
+        if (subtitle) subtitle.textContent = term.shortDesc;
+        
+        // Definition
+        const definition = document.getElementById('panelDefinition');
+        if (definition) definition.textContent = term.definition;
         
         // Related terms
         const relatedContainer = document.getElementById('relatedTerms');
-        if (term.related && term.related.length > 0) {
-            relatedContainer.innerHTML = term.related.map(relId => {
-                const relTerm = KnowledgeUtils.getTerm(relId);
-                if (!relTerm) return '';
-                const relCat = KnowledgeBase.categories.find(c => c.id === relTerm.category);
-                return `
-                    <div class="related-item" data-term-id="${relId}">
-                        <div class="related-name">${relTerm.name}</div>
-                        <div class="related-type">${relCat ? relCat.name : 'General'}</div>
-                    </div>
-                `;
-            }).join('');
-        } else {
-            relatedContainer.innerHTML = '<p style="color: var(--text-muted); font-size: var(--font-size-sm);">No related terms</p>';
+        if (relatedContainer) {
+            if (term.related && term.related.length > 0) {
+                relatedContainer.innerHTML = term.related.map(relId => {
+                    const relTerm = KnowledgeUtils.getTerm(relId);
+                    if (!relTerm) return '';
+                    const relCat = KnowledgeBase.categories.find(c => c.id === relTerm.category);
+                    return `
+                        <div class="related-item" data-term-id="${relId}">
+                            <div class="related-name">${relTerm.name}</div>
+                            <div class="related-type">${relCat ? relCat.name : 'General'}</div>
+                        </div>
+                    `;
+                }).filter(Boolean).join('') || '<p style="color:var(--text-muted);font-size:var(--font-size-sm);">No related terms found</p>';
+            } else {
+                relatedContainer.innerHTML = '<p style="color:var(--text-muted);font-size:var(--font-size-sm);">No related terms</p>';
+            }
         }
         
-        // Code example
+        // Code
         const codeContainer = document.getElementById('panelCode');
-        codeContainer.textContent = term.codeExample || '// No code example available';
+        if (codeContainer) {
+            codeContainer.textContent = term.codeExample || '// No code example available';
+        }
         
         // Tags
         const tagContainer = document.getElementById('panelTags');
-        tagContainer.innerHTML = term.tags.map(tag => 
-            `<span class="tag">${tag}</span>`
-        ).join('');
+        if (tagContainer) {
+            tagContainer.innerHTML = term.tags.map(tag => 
+                `<span class="tag">${tag}</span>`
+            ).join('');
+        }
         
         panel.classList.add('open');
         this.state.selectedTerm = term;
     }
     
     closeDetailPanel() {
-        document.getElementById('detailPanel').classList.remove('open');
+        const panel = document.getElementById('detailPanel');
+        if (panel) panel.classList.remove('open');
         this.state.selectedTerm = null;
-        this.graph.selectedNode = null;
+        if (this.graph) this.graph.selectedNode = null;
     }
     
     handleHover(node, e) {
         const tooltip = document.getElementById('tooltip');
+        if (!tooltip) return;
         
         if (node) {
-            tooltip.innerHTML = `<strong>${node.term.name}</strong><br><span style="color: var(--text-muted);">${node.term.shortDesc}</span>`;
-            tooltip.style.left = e.clientX + 12 + 'px';
-            tooltip.style.top = e.clientY + 12 + 'px';
+            tooltip.innerHTML = `<strong>${node.term.name}</strong><br><span style="color:var(--text-muted);">${node.term.shortDesc}</span>`;
+            tooltip.style.left = (e.clientX + 12) + 'px';
+            tooltip.style.top = (e.clientY + 12) + 'px';
             tooltip.classList.add('visible');
         } else {
             tooltip.classList.remove('visible');
@@ -251,26 +328,34 @@ class App {
     }
     
     openModal() {
-        document.getElementById('addModal').classList.add('open');
+        const modal = document.getElementById('addModal');
+        if (modal) modal.classList.add('open');
     }
     
     closeModal() {
-        document.getElementById('addModal').classList.remove('open');
-        document.getElementById('addTermForm').reset();
+        const modal = document.getElementById('addModal');
+        const form = document.getElementById('addTermForm');
+        if (modal) modal.classList.remove('open');
+        if (form) form.reset();
     }
     
     handleAddTerm(formData) {
-        const name = formData.get('name').trim();
+        const name = formData.get('name');
         const categoryId = formData.get('category');
-        const shortDesc = formData.get('shortDesc').trim();
-        const definition = formData.get('definition').trim();
+        const shortDesc = formData.get('shortDesc');
+        const definition = formData.get('definition');
         const relatedStr = formData.get('related') || '';
         const tagsStr = formData.get('tags') || '';
         
-        // Generate ID from name
+        if (!name || !categoryId || !shortDesc || !definition) {
+            alert('Please fill all required fields');
+            return;
+        }
+        
+        // Generate ID
         const id = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
         
-        // Parse related and tags
+        // Parse arrays
         const related = relatedStr.split(',').map(s => s.trim().toLowerCase().replace(/\s+/g, '-')).filter(Boolean);
         const tags = tagsStr.split(',').map(s => s.trim()).filter(Boolean);
         
@@ -288,7 +373,7 @@ class App {
         
         if (success) {
             // Reload graph
-            this.graph.loadData();
+            if (this.graph) this.graph.loadData();
             this.updateStats();
             this.renderCategories();
             this.closeModal();
@@ -304,5 +389,5 @@ class App {
     }
 }
 
-// Initialize app
+// Initialize
 const app = new App();
