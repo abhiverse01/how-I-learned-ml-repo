@@ -729,7 +729,7 @@ output = model.generate(**inputs, generation_config=config)`
 **Why not words?** Vocabulary size explodes. Why not chars? Context length explodes. Subwords are the sweet spot.`,
         related: ['llm', 'embeddings'],
         tags: ['preprocessing', 'encoding'],
-        codeExample: `# Tiktoken (OpenAI's BPE)
+        codeExample: `# Tiktoken (OpenAI BPE)
 import tiktoken
 
 enc = tiktoken.get_encoding("cl100k_base") # For GPT-4
