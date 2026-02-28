@@ -258,7 +258,7 @@ Contributions are welcome.
 # 🛠 Tech Stack
 
 | Layer        | Technology                   |
-|      |          - |
+|              |                            - |
 | Engine       | Vanilla JavaScript (ES6+)    |
 | Rendering    | HTML5 Canvas                 |
 | Styling      | CSS Variables + Flexbox/Grid |
