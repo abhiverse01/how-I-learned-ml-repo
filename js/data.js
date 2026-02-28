@@ -723,7 +723,7 @@ output = model.generate(**inputs, generation_config=config)`
 
 **Algorithms:**
 - **BPE (Byte Pair Encoding)**: Merges frequent byte pairs. Used by GPT, Llama.
-- **WordPiece**: Used by BERT. Uses `##` prefix for subwords.
+- **WordPiece**: Used by BERT. Uses \`##\` prefix for subwords.
 - **Unigram**: Used by SentencePiece/T5. Probabilistic.
 
 **Why not words?** Vocabulary size explodes. Why not chars? Context length explodes. Subwords are the sweet spot.`,
