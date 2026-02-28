@@ -845,6 +845,12 @@ body {
     .sidebar:not(.open) {
         transform: translateX(-100%);
     }
+
+   /* Show sidebar when .open is active on mobile */
+    .sidebar.open {
+        transform: translateX(0);
+        box-shadow: var(--shadow-xl);
+    }
     
     .header-center {
         display: none;
@@ -883,3 +889,5 @@ body {
         transition-duration: 0.01ms !important;
     }
 }
+
+
