@@ -1,6 +1,5 @@
 /**
- * AI Knowledge Graph Visualization - GOD MODE EDITION
- * Enhanced rendering, physics, and interaction.
+ * AI Knowledge Graph Visualization - CONNECTION OPTIMIZED
  */
 
 class KnowledgeGraph {
@@ -13,9 +12,9 @@ class KnowledgeGraph {
         
         this.ctx = this.canvas.getContext('2d');
         
-        // Visual Theme
+        // Theme
         this.theme = {
-            bg: '#f8fafc', // Base background
+            bg: '#f8fafc',
             bgGradientCenter: '#f1f5f9',
             gridDot: '#e2e8f0',
             edge: 'rgba(148, 163, 184, 0.25)',
@@ -25,7 +24,6 @@ class KnowledgeGraph {
             shadow: 'rgba(0, 0, 0, 0.15)'
         };
 
-        // Options
         this.options = {
             nodeRadius: { core: 26, technique: 18, infrastructure: 14, application: 12 },
             fontSize: 10,
@@ -46,17 +44,17 @@ class KnowledgeGraph {
         this.lastMouse = { x: 0, y: 0 };
         this.animationId = null;
         
-        // Logical dimensions
+        // Dimensions
         this.width = 0;
         this.height = 0;
         this.centerX = 0;
         this.centerY = 0;
         this.dpr = window.devicePixelRatio || 1;
         
-        // Time tracker for animations
+        // Animation Time
         this.time = 0;
         
-        // Physics config (Smoother constants)
+        // Physics
         this.physics = {
             enabled: true,
             repulsion: 800,
@@ -66,7 +64,6 @@ class KnowledgeGraph {
             minVelocity: 0.05
         };
         
-        // Callbacks
         this.onNodeSelect = null;
         this.onHoverChange = null;
         
@@ -82,7 +79,6 @@ class KnowledgeGraph {
     bindEvents() {
         window.addEventListener('resize', () => this.handleResize());
         
-        // Mouse Events
         this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
         this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
         this.canvas.addEventListener('mouseup', () => this.handleMouseUp());
@@ -90,7 +86,7 @@ class KnowledgeGraph {
         this.canvas.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
         this.canvas.addEventListener('click', (e) => this.handleClick(e));
         
-        // Touch Events
+        // Touch
         this.canvas.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false });
         this.canvas.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
         this.canvas.addEventListener('touchend', () => this.handleMouseUp());
@@ -103,7 +99,6 @@ class KnowledgeGraph {
         this.centerX = this.width / 2;
         this.centerY = this.height / 2;
         
-        // HiDPI Support
         this.dpr = window.devicePixelRatio || 1;
         this.canvas.width = this.width * this.dpr;
         this.canvas.height = this.height * this.dpr;
@@ -125,13 +120,11 @@ class KnowledgeGraph {
         
         if (!categories.length || !terms.length) return;
         
-        // Create nodes
         terms.forEach((term) => {
             const category = categories.find(c => c.id === term.category);
             const categoryIndex = categories.indexOf(category);
             const totalCategories = categories.length || 1;
             
-            // Circular layout with jitter
             const baseAngle = (categoryIndex / totalCategories) * Math.PI * 2 - Math.PI / 2;
             const categoryTerms = terms.filter(t => t.category === term.category);
             const termIndex = categoryTerms.indexOf(term);
@@ -161,7 +154,6 @@ class KnowledgeGraph {
                 color: category ? category.color : '#94a3b8',
                 highlighted: false,
                 visible: true,
-                // Animation state
                 currentRadius: radius, 
                 targetRadius: radius
             };
@@ -170,10 +162,10 @@ class KnowledgeGraph {
             this.nodeMap.set(term.id, node);
         });
         
-        // Create edges
         terms.forEach(term => {
             if (term.related && term.related.length > 0) {
                 term.related.forEach(relatedId => {
+                    // Check for duplicate
                     const exists = this.edges.some(e => 
                         (e.source === term.id && e.target === relatedId) ||
                         (e.source === relatedId && e.target === term.id)
@@ -189,7 +181,6 @@ class KnowledgeGraph {
             }
         });
         
-        // Initial physics settle
         for (let i = 0; i < 50; i++) {
             this.simulatePhysics(0.15);
         }
@@ -203,15 +194,12 @@ class KnowledgeGraph {
         const nodes = this.nodes;
         const eps = 0.001;
         
-        // Apply forces
         nodes.forEach(node => {
             if (!node.visible) return;
             
-            // Center gravity
             node.vx += (this.centerX - node.x) * this.physics.centerGravity * dt;
             node.vy += (this.centerY - node.y) * this.physics.centerGravity * dt;
             
-            // Repulsion
             nodes.forEach(other => {
                 if (node.id === other.id || !other.visible) return;
                 
@@ -220,7 +208,6 @@ class KnowledgeGraph {
                 const distSq = dx * dx + dy * dy;
                 const dist = Math.max(Math.sqrt(distSq), 1);
                 
-                // Stronger repulsion at close range
                 if (dist < 200) {
                     const force = this.physics.repulsion / (distSq + eps);
                     node.vx += (dx / dist) * force * dt;
@@ -229,7 +216,6 @@ class KnowledgeGraph {
             });
         });
         
-        // Edge attraction
         this.edges.forEach(edge => {
             const source = this.nodeMap.get(edge.source);
             const target = this.nodeMap.get(edge.target);
@@ -238,7 +224,7 @@ class KnowledgeGraph {
             const dx = target.x - source.x;
             const dy = target.y - source.y;
             const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
-            const targetDist = 180; // Ideal spring length
+            const targetDist = 180;
             
             const force = (dist - targetDist) * this.physics.attraction;
             source.vx += (dx / dist) * force * dt;
@@ -247,7 +233,6 @@ class KnowledgeGraph {
             target.vy -= (dy / dist) * force * dt;
         });
         
-        // Apply velocity
         nodes.forEach(node => {
             if (!node.visible) return;
             
@@ -264,23 +249,17 @@ class KnowledgeGraph {
             if (Math.abs(node.vx) > this.physics.minVelocity) node.x += node.vx;
             if (Math.abs(node.vy) > this.physics.minVelocity) node.y += node.vy;
             
-            // Bounds
             const padding = this.options.padding;
             node.x = Math.max(padding, Math.min(this.width - padding, node.x));
             node.y = Math.max(padding, Math.min(this.height - padding, node.y));
             
-            // Animate radius (for selection pulse)
             node.currentRadius += (node.targetRadius - node.currentRadius) * 0.1;
         });
     }
     
-    // --- Interaction Logic (Unchanged) ---
-    
+    // Interaction Handlers
     screenToWorld(sx, sy) {
-        return {
-            x: (sx - this.panX) / this.zoom,
-            y: (sy - this.panY) / this.zoom
-        };
+        return { x: (sx - this.panX) / this.zoom, y: (sy - this.panY) / this.zoom };
     }
     
     findNodeAt(wx, wy) {
@@ -374,7 +353,6 @@ class KnowledgeGraph {
     handleClick(e) {
         if (this.hoveredNode) {
             this.selectedNode = this.hoveredNode;
-            // Trigger radius pulse
             this.selectedNode.targetRadius = this.selectedNode.radius * 1.2;
             setTimeout(() => {
                 if(this.selectedNode) this.selectedNode.targetRadius = this.selectedNode.radius;
@@ -423,7 +401,7 @@ class KnowledgeGraph {
     
     startAnimation() {
         const animate = () => {
-            this.time += 0.016; // Approx 60fps delta
+            this.time += 0.016; 
             this.simulatePhysics();
             this.render();
             this.animationId = requestAnimationFrame(animate);
@@ -435,36 +413,27 @@ class KnowledgeGraph {
         if (this.animationId) cancelAnimationFrame(this.animationId);
     }
     
-    // --- GOD MODE RENDERING ---
+    // --- RENDERING ---
 
     render() {
         const ctx = this.ctx;
         
-        // 1. Clear & Background
         ctx.save();
         ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
         
-        // Gradient Background
-        const bgGrad = ctx.createRadialGradient(
-            this.centerX, this.centerY, 0, 
-            this.centerX, this.centerY, Math.max(this.width, this.height) * 0.7
-        );
+        // Background
+        const bgGrad = ctx.createRadialGradient(this.centerX, this.centerY, 0, this.centerX, this.centerY, Math.max(this.width, this.height) * 0.7);
         bgGrad.addColorStop(0, '#ffffff');
         bgGrad.addColorStop(1, this.theme.bg);
         ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, this.width, this.height);
         
-        // Dot Grid Pattern
         this.drawDotGrid(ctx);
         
-        // 2. World Transformations (Pan/Zoom)
         ctx.translate(this.panX, this.panY);
         ctx.scale(this.zoom, this.zoom);
         
-        // 3. Edges (Draw first, under nodes)
-        this.drawEdges(ctx);
-        
-        // 4. Nodes
+        this.drawEdges(ctx); // EDGES FIRST
         this.drawNodes(ctx);
         
         ctx.restore();
@@ -473,71 +442,121 @@ class KnowledgeGraph {
     drawDotGrid(ctx) {
         ctx.fillStyle = this.theme.gridDot;
         const gap = 40;
-        const radius = 1.5;
-        
-        // Offset grid by pan/zoom to create infinite feel
-        // But for performance in this specific app, static is fine, or we can just skip moving it.
-        // Let's keep it static for cleaner look during pan.
-        
         for (let x = gap; x < this.width; x += gap) {
             for (let y = gap; y < this.height; y += gap) {
                 ctx.beginPath();
-                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.arc(x, y, 1.5, 0, Math.PI * 2);
                 ctx.fill();
             }
         }
     }
 
+    /**
+     * CONNECTION GOD MODE:
+     * 1. Gradient Lines (Source Color -> Target Color)
+     * 2. Directional Arrows
+     * 3. Flow Animation
+     */
     drawEdges(ctx) {
+        const selected = this.selectedNode;
+        const hovered = this.hoveredNode;
+        
         this.edges.forEach(edge => {
             const source = this.nodeMap.get(edge.source);
             const target = this.nodeMap.get(edge.target);
             
             if (!source || !target || !source.visible || !target.visible) return;
             
-            const isSelected = this.selectedNode && 
-                (this.selectedNode.id === source.id || this.selectedNode.id === target.id);
+            // Determine relevance
+            const isSourceSelected = selected && (selected.id === source.id || selected.id === target.id);
+            const isHoveredRelated = hovered && (hovered.id === source.id || hovered.id === target.id);
             
-            // Curved Line Calculation
+            // Opacity logic: Fade unrelated edges when a node is selected
+            let opacity = 0.6;
+            if (selected && !isSourceSelected) {
+                opacity = 0.08; // Fade out unrelated
+            } else if (isSourceSelected) {
+                opacity = 1.0; // Highlight primary
+            } else if (hovered && !isHoveredRelated) {
+                opacity = 0.15;
+            }
+
             const dx = target.x - source.x;
             const dy = target.y - source.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             
-            // Midpoint offset for curve
+            // Curvature Calculation
             const mx = (source.x + target.x) / 2;
             const my = (source.y + target.y) / 2;
-            
-            // Perpendicular offset
-            const offset = dist * 0.1; // Curve intensity
-            
-            // Alternate curve direction for overlapping edges if needed, 
-            // but simple random based on id is consistent
+            const offset = dist * 0.15; 
             const direction = (source.id < target.id) ? 1 : -1;
             const cx = mx + (dy / dist) * offset * direction;
             const cy = my - (dx / dist) * offset * direction;
-
+            
+            // 1. DRAW THE LINE
             ctx.beginPath();
             ctx.moveTo(source.x, source.y);
             ctx.quadraticCurveTo(cx, cy, target.x, target.y);
             
-            if (isSelected) {
-                ctx.strokeStyle = this.theme.edgeHighlight;
-                ctx.lineWidth = 2.5;
-                ctx.shadowColor = 'rgba(6, 182, 212, 0.5)';
-                ctx.shadowBlur = 8;
-            } else {
-                ctx.strokeStyle = this.theme.edge;
-                ctx.lineWidth = 1.2;
-                ctx.shadowBlur = 0; // Clear shadow
-            }
+            // Create Gradient: Source Color -> Target Color
+            // Note: Gradient coordinates are in world space
+            const grad = ctx.createLinearGradient(source.x, source.y, target.x, target.y);
+            grad.addColorStop(0, this.hexToRgba(source.color, opacity));
+            grad.addColorStop(1, this.hexToRgba(target.color, opacity));
             
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = (isSourceSelected || isHoveredRelated) ? 2.5 : 1.5;
             ctx.stroke();
-            ctx.shadowBlur = 0; // Reset shadow
+            
+            // 2. DRAW ARROW HEAD (For Direction)
+            // We need to find the tangent at the end of the curve.
+            // Using quadratic formula derivative approx is complex, 
+            // so we approximate the angle using the control point and end point.
+            
+            // Angle at end of quadratic bezier:
+            // B'(t) = 2(1-t)(P1-P0) + 2t(P2-P1). For t=1, it's 2(P2-P1).
+            const tangentX = target.x - cx;
+            const tangentY = target.y - cy;
+            const angle = Math.atan2(tangentY, tangentX);
+            
+            // Position arrow slightly inside the node radius
+            const arrowPos = target.radius + 5;
+            const arrowX = target.x - Math.cos(angle) * arrowPos;
+            const arrowY = target.y - Math.sin(angle) * arrowPos;
+            
+            ctx.save();
+            ctx.translate(arrowX, arrowY);
+            ctx.rotate(angle);
+            
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(-8, 4); // Arrow size
+            ctx.lineTo(-8, -4);
+            ctx.closePath();
+            
+            ctx.fillStyle = this.hexToRgba(target.color, opacity); // Target color
+            ctx.fill();
+            ctx.restore();
+            
+            // 3. FLOW ANIMATION (Only on selected/highlighted paths)
+            if (isSourceSelected || isHoveredRelated) {
+                ctx.save();
+                // Clip to path to draw inside the line
+                ctx.beginPath();
+                ctx.moveTo(source.x, source.y);
+                ctx.quadraticCurveTo(cx, cy, target.x, target.y);
+                ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 20]); // Dot length, gap
+                // Animate the dash offset
+                ctx.lineDashOffset = -this.time * 50; // Speed
+                ctx.stroke();
+                ctx.restore();
+            }
         });
     }
 
     drawNodes(ctx) {
-        // Sort nodes so selected/hovered are drawn on top
         const sortedNodes = [...this.nodes].sort((a, b) => {
             if (a.id === this.selectedNode?.id) return 1;
             if (b.id === this.selectedNode?.id) return -1;
@@ -549,71 +568,59 @@ class KnowledgeGraph {
             
             const isSelected = this.selectedNode && this.selectedNode.id === node.id;
             const isHovered = this.hoveredNode && this.hoveredNode.id === node.id;
-            const isRelated = this.selectedNode && node.term.related && 
-                node.term.related.includes(this.selectedNode.id);
             
-            // Pulse animation for selected node
             let r = node.currentRadius;
             if (isSelected) {
-                r += Math.sin(this.time * 5) * 2; // Gentle pulse
+                r += Math.sin(this.time * 5) * 2; 
             }
             r = Math.max(1, r);
             
-            // --- Shadow ---
+            // Shadow
             if (isSelected || isHovered) {
-                ctx.shadowColor = node.color + '80';
-                ctx.shadowBlur = 20;
-                ctx.shadowOffsetX = 0;
-                ctx.shadowOffsetY = 4;
+                ctx.shadowColor = node.color + 'aa';
+                ctx.shadowBlur = 25;
             } else {
                 ctx.shadowColor = 'rgba(0,0,0,0.1)';
                 ctx.shadowBlur = 10;
-                ctx.shadowOffsetX = 0;
-                ctx.shadowOffsetY = 2;
             }
             
-            // --- Node Body (Gradient) ---
+            // Body
             ctx.beginPath();
             ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
             
-            // Create a 3D sphere gradient look
             const grad = ctx.createRadialGradient(
-                node.x - r*0.3, node.y - r*0.3, r * 0.1, // Highlight spot
+                node.x - r*0.3, node.y - r*0.3, r * 0.1,
                 node.x, node.y, r
             );
             
+            const baseOpacity = (this.selectedNode && !isSelected && !node.highlighted) ? 0.4 : 1.0;
+            
             if (isSelected || isHovered || node.highlighted) {
                 grad.addColorStop(0, '#ffffff');
-                grad.addColorStop(0.3, node.color);
-                grad.addColorStop(1, this.darkenColor(node.color, 30));
+                grad.addColorStop(0.3, this.hexToRgba(node.color, baseOpacity));
+                grad.addColorStop(1, this.darkenColor(node.color, 20));
                 ctx.fillStyle = grad;
             } else {
                 grad.addColorStop(0, '#ffffff');
-                grad.addColorStop(0.5, '#ffffff');
-                grad.addColorStop(1, '#f1f5f9');
+                grad.addColorStop(1, '#ffffff');
                 ctx.fillStyle = grad;
             }
             
             ctx.fill();
             
-            // --- Border ---
-            ctx.shadowBlur = 0; // Don't apply shadow to border
-            ctx.strokeStyle = (isSelected || isHovered || node.highlighted) ? node.color : '#cbd5e1';
-            ctx.lineWidth = (isSelected || isHovered) ? 3 : 2;
+            ctx.shadowBlur = 0;
+            
+            ctx.strokeStyle = (isSelected || isHovered) ? node.color : '#cbd5e1';
+            ctx.lineWidth = (isSelected || isHovered) ? 3 : 1.5;
             ctx.stroke();
             
-            // --- Label ---
+            // Label
             ctx.font = `600 ${this.options.fontSize}px 'Plus Jakarta Sans', sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             
-            // Text Shadow for readability
-            ctx.fillStyle = 'rgba(255,255,255,0.8)'; // Fake shadow
-            ctx.fillText(node.term.name, node.x + 0.5, node.y + 0.5);
-            
-            // Actual Text
             ctx.fillStyle = (isSelected || isHovered) ? node.color : '#475569';
-            if (isSelected) ctx.fillStyle = '#ffffff'; // White text on solid color
+            if (isSelected) ctx.fillStyle = '#fff';
             
             let label = node.term.name;
             if (label.length > 8) label = label.slice(0, 6) + '..';
@@ -621,18 +628,21 @@ class KnowledgeGraph {
         });
     }
 
-    // Utility to darken colors for gradient depth
+    // Helpers
     darkenColor(hex, percent) {
         const num = parseInt(hex.replace('#', ''), 16);
         const amt = Math.round(2.55 * percent);
-        const R = (num >> 16) - amt;
-        const G = (num >> 8 & 0x00FF) - amt;
-        const B = (num & 0x0000FF) - amt;
-        return '#' + (0x1000000 + 
-            (R < 0 ? 0 : R > 255 ? 255 : R) * 0x10000 + 
-            (G < 0 ? 0 : G > 255 ? 255 : G) * 0x100 + 
-            (B < 0 ? 0 : B > 255 ? 255 : B)
-        ).toString(16).slice(1);
+        const R = Math.max(0, (num >> 16) - amt);
+        const G = Math.max(0, (num >> 8 & 0x00FF) - amt);
+        const B = Math.max(0, (num & 0x0000FF) - amt);
+        return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+    }
+
+    hexToRgba(hex, alpha) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 }
 
