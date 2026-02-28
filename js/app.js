@@ -83,13 +83,23 @@ class App {
             }
         });
         
-        // Sidebar toggle
+        // Sidebar toggle - FIXED for mobile/desktop compatibility
         const toggleBtn = document.getElementById('toggleSidebar');
         if (toggleBtn) {
             toggleBtn.addEventListener('click', () => {
-                document.getElementById('sidebar').classList.toggle('collapsed');
+                const sidebar = document.getElementById('sidebar');
+                
+                // On desktop, we toggle 'collapsed'. On mobile, we toggle 'open'.
+                // Since CSS hides it on mobile by default, we need to add 'open' to show it.
+                // CSS rule: @media (max-width: 1024px) { .sidebar.open { transform: translateX(0); } }
+                
+                if (window.innerWidth <= 1024) {
+                    sidebar.classList.toggle('open'); 
+                } else {
+                    sidebar.classList.toggle('collapsed');
+                }
             });
-        }
+        }}
         
         // Category list
         const categoryList = document.getElementById('categoryList');
