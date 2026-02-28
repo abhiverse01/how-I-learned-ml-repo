@@ -284,9 +284,8 @@ AI Engineer • Systems Thinker • Builder
 
 # 📄 License
 
-This project is licensed under the MIT License.
-
 <p align="center">
+  This project is licensed under the MIT License.
   <b>Built with precision, curiosity, and deep respect for intelligence.</b>
   <br/>
   If you found this project valuable, consider ⭐ starring the repository.
