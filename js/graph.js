@@ -1,6 +1,5 @@
 /**
- * Knowledge Graph Visualization
- * Handles canvas rendering and physics simulation
+ * Knowledge Graph Visualization - FIXED
  */
 
 class KnowledgeGraph {
@@ -12,11 +11,12 @@ class KnowledgeGraph {
         }
         
         this.ctx = this.canvas.getContext('2d');
+        
+        // Options with defaults
         this.options = {
-            nodeRadius: { core: 24, technique: 18, infrastructure: 16, application: 14 },
-            edgeWidth: 1,
-            fontSize: 11,
-            padding: 80,
+            nodeRadius: { core: 22, technique: 16, infrastructure: 14, application: 12 },
+            fontSize: 10,
+            padding: 60,
             ...options
         };
         
@@ -30,101 +30,94 @@ class KnowledgeGraph {
         this.selectedNode = null;
         this.isDragging = false;
         this.lastMouse = { x: 0, y: 0 };
-        this.animationFrame = null;
+        this.animationId = null;
+        this.centerX = 0;
+        this.centerY = 0;
         
-        // Physics
+        // Physics config
         this.physics = {
             enabled: true,
-            repulsion: 800,
-            attraction: 0.008,
-            centerGravity: 0.01,
-            damping: 0.85,
-            minVelocity: 0.01
+            repulsion: 600,
+            attraction: 0.006,
+            centerGravity: 0.008,
+            damping: 0.88,
+            minVelocity: 0.05
         };
         
-        // Bind methods
-        this.handleResize = this.handleResize.bind(this);
-        this.handleMouseMove = this.handleMouseMove.bind(this);
-        this.handleMouseDown = this.handleMouseDown.bind(this);
-        this.handleMouseUp = this.handleMouseUp.bind(this);
-        this.handleWheel = this.handleWheel.bind(this);
-        this.handleClick = this.handleClick.bind(this);
-        this.handleMouseLeave = this.handleMouseLeave.bind(this);
+        // Callbacks
+        this.onNodeSelect = null;
+        this.onHoverChange = null;
         
         this.init();
     }
     
     init() {
         this.handleResize();
-        this.setupEventListeners();
+        this.bindEvents();
         this.startAnimation();
     }
     
-    setupEventListeners() {
-        window.addEventListener('resize', this.handleResize);
+    bindEvents() {
+        window.addEventListener('resize', () => this.handleResize());
         
-        this.canvas.addEventListener('mousemove', this.handleMouseMove);
-        this.canvas.addEventListener('mousedown', this.handleMouseDown);
-        this.canvas.addEventListener('mouseup', this.handleMouseUp);
-        this.canvas.addEventListener('wheel', this.handleWheel, { passive: false });
-        this.canvas.addEventListener('click', this.handleClick);
-        this.canvas.addEventListener('mouseleave', this.handleMouseLeave);
-        
-        // Touch support
-        this.canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            this.handleMouseDown({ clientX: touch.clientX, clientY: touch.clientY });
-        });
-        this.canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            this.handleMouseMove({ clientX: touch.clientX, clientY: touch.clientY });
-        });
-        this.canvas.addEventListener('touchend', this.handleMouseUp);
+        this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+        this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+        this.canvas.addEventListener('mouseup', () => this.handleMouseUp());
+        this.canvas.addEventListener('mouseleave', () => this.handleMouseLeave());
+        this.canvas.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
+        this.canvas.addEventListener('click', (e) => this.handleClick(e));
     }
     
     handleResize() {
         const rect = this.canvas.parentElement.getBoundingClientRect();
-        this.canvas.width = rect.width;
-        this.canvas.height = rect.height;
+        this.canvas.width = rect.width || 800;
+        this.canvas.height = rect.height || 600;
         this.centerX = this.canvas.width / 2;
         this.centerY = this.canvas.height / 2;
     }
     
-    // Load data from KnowledgeBase
     loadData() {
-        if (!window.KnowledgeBase) return;
+        if (!window.KnowledgeBase) {
+            console.error('KnowledgeBase not found');
+            return;
+        }
         
         this.nodes = [];
         this.edges = [];
         
-        const categories = window.KnowledgeBase.categories;
-        const terms = window.KnowledgeBase.terms;
+        const categories = KnowledgeBase.categories;
+        const terms = KnowledgeBase.terms;
         
-        // Create nodes with initial positions
-        terms.forEach((term, index) => {
+        if (!categories.length || !terms.length) {
+            console.error('No data in KnowledgeBase');
+            return;
+        }
+        
+        // Create nodes
+        terms.forEach((term) => {
             const category = categories.find(c => c.id === term.category);
             const categoryIndex = categories.indexOf(category);
-            const totalCategories = categories.length;
+            const totalCategories = categories.length || 1;
             
-            // Position in category cluster
+            // Position calculation
             const baseAngle = (categoryIndex / totalCategories) * Math.PI * 2 - Math.PI / 2;
             const categoryTerms = terms.filter(t => t.category === term.category);
             const termIndex = categoryTerms.indexOf(term);
             
-            // Determine radius based on type
-            let radius = this.options.nodeRadius[term.type] || 16;
-            let distance = 200 + (term.type === 'core' ? 0 : 60);
+            const radius = this.options.nodeRadius[term.type] || 16;
+            let distance = 180;
+            if (term.type === 'core') distance = 140;
+            else if (term.type === 'technique') distance = 200;
+            else distance = 250;
             
-            // Spread within category
-            const spreadAngle = Math.PI / 4;
-            const angleOffset = (termIndex - categoryTerms.length / 2) * (spreadAngle / Math.max(1, categoryTerms.length));
+            const spreadAngle = Math.PI / 5;
+            const angleOffset = categoryTerms.length > 1 
+                ? (termIndex - (categoryTerms.length - 1) / 2) * (spreadAngle / categoryTerms.length)
+                : 0;
             const angle = baseAngle + angleOffset;
             
-            // Add some randomness
-            const jitterX = (Math.random() - 0.5) * 40;
-            const jitterY = (Math.random() - 0.5) * 40;
+            const jitterX = (Math.random() - 0.5) * 30;
+            const jitterY = (Math.random() - 0.5) * 30;
             
             this.nodes.push({
                 id: term.id,
@@ -135,18 +128,18 @@ class KnowledgeGraph {
                 radius: radius,
                 term: term,
                 color: category ? category.color : '#6b7280',
-                highlighted: false
+                highlighted: false,
+                visible: true
             });
         });
         
-        // Create edges from relationships
+        // Create edges
         terms.forEach(term => {
-            if (term.related) {
+            if (term.related && term.related.length > 0) {
                 term.related.forEach(relatedId => {
-                    // Avoid duplicate edges
                     const exists = this.edges.some(e => 
                         (e.source === term.id && e.target === relatedId) ||
-                        (e.target === term.id && e.source === relatedId)
+                        (e.source === relatedId && e.target === term.id)
                     );
                     if (!exists) {
                         this.edges.push({
@@ -159,36 +152,38 @@ class KnowledgeGraph {
             }
         });
         
-        // Run physics to settle
-        for (let i = 0; i < 100; i++) {
-            this.simulatePhysics(0.1);
+        // Initial physics settle
+        for (let i = 0; i < 50; i++) {
+            this.simulatePhysics(0.15);
         }
+        
+        console.log('Graph loaded:', this.nodes.length, 'nodes,', this.edges.length, 'edges');
     }
     
     simulatePhysics(dt = 1) {
         if (!this.physics.enabled) return;
         
         const nodes = this.nodes;
-        const centerX = this.centerX;
-        const centerY = this.centerY;
+        const eps = 0.001;
         
-        // Apply forces
         nodes.forEach(node => {
-            // Center gravity
-            node.vx += (centerX - node.x) * this.physics.centerGravity * dt;
-            node.vy += (centerY - node.y) * this.physics.centerGravity * dt;
+            if (!node.visible) return;
             
-            // Repulsion from other nodes
+            // Center gravity
+            node.vx += (this.centerX - node.x) * this.physics.centerGravity * dt;
+            node.vy += (this.centerY - node.y) * this.physics.centerGravity * dt;
+            
+            // Repulsion
             nodes.forEach(other => {
-                if (node.id === other.id) return;
+                if (node.id === other.id || !other.visible) return;
                 
                 const dx = node.x - other.x;
                 const dy = node.y - other.y;
-                const dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-                const minDist = node.radius + other.radius + 20;
+                const distSq = dx * dx + dy * dy;
+                const dist = Math.max(Math.sqrt(distSq), 1);
                 
-                if (dist < minDist * 3) {
-                    const force = this.physics.repulsion / (dist * dist);
+                if (dist < 150) {
+                    const force = this.physics.repulsion / (distSq + eps);
                     node.vx += (dx / dist) * force * dt;
                     node.vy += (dy / dist) * force * dt;
                 }
@@ -199,12 +194,12 @@ class KnowledgeGraph {
         this.edges.forEach(edge => {
             const source = this.findNode(edge.source);
             const target = this.findNode(edge.target);
-            if (!source || !target) return;
+            if (!source || !target || !source.visible || !target.visible) return;
             
             const dx = target.x - source.x;
             const dy = target.y - source.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const targetDist = 180;
+            const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
+            const targetDist = 150;
             
             const force = (dist - targetDist) * this.physics.attraction;
             source.vx += (dx / dist) * force * dt;
@@ -215,26 +210,23 @@ class KnowledgeGraph {
         
         // Apply velocity
         nodes.forEach(node => {
+            if (!node.visible) return;
+            
             node.vx *= this.physics.damping;
             node.vy *= this.physics.damping;
             
             // Clamp velocity
-            const maxV = 10;
+            const maxV = 8;
             const v = Math.sqrt(node.vx * node.vx + node.vy * node.vy);
             if (v > maxV) {
                 node.vx = (node.vx / v) * maxV;
                 node.vy = (node.vy / v) * maxV;
             }
             
-            // Apply if above threshold
-            if (Math.abs(node.vx) > this.physics.minVelocity) {
-                node.x += node.vx;
-            }
-            if (Math.abs(node.vy) > this.physics.minVelocity) {
-                node.y += node.vy;
-            }
+            if (Math.abs(node.vx) > this.physics.minVelocity) node.x += node.vx;
+            if (Math.abs(node.vy) > this.physics.minVelocity) node.y += node.vy;
             
-            // Keep in bounds
+            // Bounds
             const padding = this.options.padding;
             node.x = Math.max(padding, Math.min(this.canvas.width - padding, node.x));
             node.y = Math.max(padding, Math.min(this.canvas.height - padding, node.y));
@@ -245,25 +237,22 @@ class KnowledgeGraph {
         return this.nodes.find(n => n.id === id);
     }
     
-    // Convert screen coords to world coords
-    screenToWorld(screenX, screenY) {
+    screenToWorld(sx, sy) {
         const rect = this.canvas.getBoundingClientRect();
         return {
-            x: (screenX - rect.left - this.panX) / this.zoom,
-            y: (screenY - rect.top - this.panY) / this.zoom
+            x: (sx - rect.left - this.panX) / this.zoom,
+            y: (sy - rect.top - this.panY) / this.zoom
         };
     }
     
-    // Find node at position
-    findNodeAt(worldX, worldY) {
+    findNodeAt(wx, wy) {
         for (let i = this.nodes.length - 1; i >= 0; i--) {
             const node = this.nodes[i];
-            const dx = worldX - node.x;
-            const dy = worldY - node.y;
+            if (!node.visible) continue;
+            const dx = wx - node.x;
+            const dy = wy - node.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist <= node.radius + 5) {
-                return node;
-            }
+            if (dist <= node.radius + 4) return node;
         }
         return null;
     }
@@ -283,15 +272,14 @@ class KnowledgeGraph {
             if (hovered !== this.hoveredNode) {
                 this.hoveredNode = hovered;
                 this.canvas.style.cursor = hovered ? 'pointer' : 'grab';
-                this.onHoverChange && this.onHoverChange(hovered, e);
+                if (this.onHoverChange) this.onHoverChange(hovered, e);
             }
         }
     }
     
     handleMouseDown(e) {
         this.isDragging = true;
-        this.lastMouse.x = e.clientX;
-        this.lastMouse.y = e.clientY;
+        this.lastMouse = { x: e.clientX, y: e.clientY };
         this.canvas.style.cursor = 'grabbing';
     }
     
@@ -300,35 +288,33 @@ class KnowledgeGraph {
         this.canvas.style.cursor = this.hoveredNode ? 'pointer' : 'grab';
     }
     
+    handleMouseLeave() {
+        this.isDragging = false;
+        this.hoveredNode = null;
+        if (this.onHoverChange) this.onHoverChange(null);
+    }
+    
     handleWheel(e) {
         e.preventDefault();
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        const delta = e.deltaY > 0 ? 0.92 : 1.08;
         const newZoom = Math.max(0.3, Math.min(3, this.zoom * delta));
         
-        // Zoom towards mouse position
         const rect = this.canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
         
-        this.panX = mouseX - (mouseX - this.panX) * (newZoom / this.zoom);
-        this.panY = mouseY - (mouseY - this.panY) * (newZoom / this.zoom);
+        this.panX = mx - (mx - this.panX) * (newZoom / this.zoom);
+        this.panY = my - (my - this.panY) * (newZoom / this.zoom);
         this.zoom = newZoom;
     }
     
     handleClick(e) {
         if (this.hoveredNode) {
             this.selectedNode = this.hoveredNode;
-            this.onNodeSelect && this.onNodeSelect(this.hoveredNode.term);
+            if (this.onNodeSelect) this.onNodeSelect(this.hoveredNode.term);
         }
     }
     
-    handleMouseLeave() {
-        this.isDragging = false;
-        this.hoveredNode = null;
-        this.onHoverChange && this.onHoverChange(null);
-    }
-    
-    // Zoom controls
     zoomIn() {
         this.zoom = Math.min(3, this.zoom * 1.2);
     }
@@ -343,11 +329,10 @@ class KnowledgeGraph {
         this.panY = 0;
     }
     
-    // Highlight nodes by search
     highlightNodes(query) {
-        const q = query.toLowerCase();
+        const q = query ? query.toLowerCase() : '';
         this.nodes.forEach(node => {
-            node.highlighted = query && (
+            node.highlighted = q && (
                 node.term.name.toLowerCase().includes(q) ||
                 node.term.shortDesc.toLowerCase().includes(q) ||
                 node.term.tags.some(t => t.toLowerCase().includes(q))
@@ -355,30 +340,25 @@ class KnowledgeGraph {
         });
     }
     
-    // Filter by category
     filterByCategory(categoryId) {
         this.nodes.forEach(node => {
             node.visible = !categoryId || node.term.category === categoryId;
         });
     }
     
-    // Animation loop
     startAnimation() {
         const animate = () => {
             this.simulatePhysics();
             this.render();
-            this.animationFrame = requestAnimationFrame(animate);
+            this.animationId = requestAnimationFrame(animate);
         };
         animate();
     }
     
     stopAnimation() {
-        if (this.animationFrame) {
-            cancelAnimationFrame(this.animationFrame);
-        }
+        if (this.animationId) cancelAnimationFrame(this.animationId);
     }
     
-    // Render
     render() {
         const ctx = this.ctx;
         const w = this.canvas.width;
@@ -388,20 +368,33 @@ class KnowledgeGraph {
         ctx.fillStyle = '#fafbfc';
         ctx.fillRect(0, 0, w, h);
         
-        // Draw subtle grid
-        this.drawGrid(ctx, w, h);
+        // Grid
+        ctx.strokeStyle = 'rgba(0,0,0,0.025)';
+        ctx.lineWidth = 1;
+        const gridSize = 30;
+        for (let x = 0; x < w; x += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, h);
+            ctx.stroke();
+        }
+        for (let y = 0; y < h; y += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(w, y);
+            ctx.stroke();
+        }
         
-        // Apply transform
+        // Transform
         ctx.save();
         ctx.translate(this.panX, this.panY);
         ctx.scale(this.zoom, this.zoom);
         
-        // Draw edges
+        // Edges
         this.edges.forEach(edge => {
             const source = this.findNode(edge.source);
             const target = this.findNode(edge.target);
-            if (!source || !target) return;
-            if (source.visible === false || target.visible === false) return;
+            if (!source || !target || !source.visible || !target.visible) return;
             
             const isHighlighted = this.selectedNode && 
                 (this.selectedNode.id === source.id || this.selectedNode.id === target.id);
@@ -409,109 +402,66 @@ class KnowledgeGraph {
             ctx.beginPath();
             ctx.moveTo(source.x, source.y);
             ctx.lineTo(target.x, target.y);
-            
-            if (isHighlighted) {
-                ctx.strokeStyle = 'rgba(8, 145, 178, 0.5)';
-                ctx.lineWidth = 2;
-            } else {
-                ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
-                ctx.lineWidth = 1;
-            }
+            ctx.strokeStyle = isHighlighted ? 'rgba(8,145,178,0.4)' : 'rgba(0,0,0,0.06)';
+            ctx.lineWidth = isHighlighted ? 1.5 : 0.8;
             ctx.stroke();
         });
         
-        // Draw nodes
+        // Nodes
         this.nodes.forEach(node => {
-            if (node.visible === false) return;
+            if (!node.visible) return;
             
             const isSelected = this.selectedNode && this.selectedNode.id === node.id;
             const isHovered = this.hoveredNode && this.hoveredNode.id === node.id;
-            const isRelated = this.selectedNode && node.term.related?.includes(this.selectedNode.id);
-            const radius = Math.max(1, node.radius);
+            const isRelated = this.selectedNode && node.term.related && 
+                node.term.related.includes(this.selectedNode.id);
+            const r = Math.max(1, node.radius);
             
-            // Glow for selected/hovered
+            // Glow
             if (isSelected || isHovered) {
-                const glowRadius = Math.max(1, radius + 10);
-                const gradient = ctx.createRadialGradient(
-                    node.x, node.y, 0,
-                    node.x, node.y, glowRadius
-                );
-                gradient.addColorStop(0, node.color + '40');
-                gradient.addColorStop(1, node.color + '00');
-                ctx.fillStyle = gradient;
+                const gr = Math.max(1, r + 8);
+                const grad = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, gr);
+                grad.addColorStop(0, node.color + '30');
+                grad.addColorStop(1, node.color + '00');
+                ctx.fillStyle = grad;
                 ctx.beginPath();
-                ctx.arc(node.x, node.y, glowRadius, 0, Math.PI * 2);
+                ctx.arc(node.x, node.y, gr, 0, Math.PI * 2);
                 ctx.fill();
             }
             
-            // Node circle
+            // Circle
             ctx.beginPath();
-            ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
+            ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
             
             if (isSelected) {
                 ctx.fillStyle = node.color;
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 3;
-            } else if (isHovered || isRelated) {
-                ctx.fillStyle = node.color + 'dd';
-                ctx.strokeStyle = node.color;
-                ctx.lineWidth = 2;
-            } else if (node.highlighted) {
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2.5;
+            } else if (isHovered || isRelated || node.highlighted) {
                 ctx.fillStyle = node.color + 'cc';
                 ctx.strokeStyle = node.color;
                 ctx.lineWidth = 2;
             } else {
-                ctx.fillStyle = '#ffffff';
-                ctx.strokeStyle = node.color + '80';
+                ctx.fillStyle = '#fff';
+                ctx.strokeStyle = node.color + '60';
                 ctx.lineWidth = 1.5;
             }
-            
             ctx.fill();
             ctx.stroke();
             
             // Label
-            ctx.font = `${isSelected || isHovered ? '600' : '500'} ${this.options.fontSize}px 'Plus Jakarta Sans', sans-serif`;
+            ctx.font = `500 ${this.options.fontSize}px 'Plus Jakarta Sans', sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
+            ctx.fillStyle = isSelected ? '#fff' : '#374151';
             
-            // Text color based on background
-            ctx.fillStyle = isSelected ? '#ffffff' : '#374151';
-            
-            // Truncate long names
             let label = node.term.name;
-            if (label.length > 10) {
-                label = label.substring(0, 8) + '..';
-            }
+            if (label.length > 9) label = label.slice(0, 7) + '..';
             ctx.fillText(label, node.x, node.y);
         });
         
         ctx.restore();
     }
-    
-    drawGrid(ctx, w, h) {
-        const gridSize = 40;
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.03)';
-        ctx.lineWidth = 1;
-        
-        for (let x = 0; x < w; x += gridSize) {
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, h);
-            ctx.stroke();
-        }
-        
-        for (let y = 0; y < h; y += gridSize) {
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(w, y);
-            ctx.stroke();
-        }
-    }
-    
-    // Callbacks
-    onNodeSelect = null;
-    onHoverChange = null;
 }
 
-// Export
 window.KnowledgeGraph = KnowledgeGraph;
