@@ -949,10 +949,9 @@ Constraints:
 - Handle edge cases (None, empty list)
 
 Output Format:
-```python
 def function(...): ...
-```
-"""`
+"""
+`
 
     },
 
