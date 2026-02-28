@@ -21,7 +21,7 @@ function createTerm(config) {
         createdAt: config.createdAt || new Date().toISOString(),
         importance: config.importance || 0
     };
-}
+};
 
 // ==========================================
 // CATEGORY DEFINITIONS
