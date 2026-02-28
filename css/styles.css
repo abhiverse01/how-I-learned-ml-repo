@@ -1393,3 +1393,62 @@ body {
         transform: none;
     }
 }
+
+
+/* ==========================================
+   TITANML QUICK FILTER FIX (REAL STRUCTURE)
+   ========================================== */
+
+.filter-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.filter-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: transparent;
+    transition: all 0.18s ease;
+    border: 1px solid transparent;
+}
+
+.filter-item:hover {
+    background: var(--bg-tertiary);
+    transform: translateX(3px);
+}
+
+.filter-item.active {
+    background: rgba(8, 145, 178, 0.08);
+    border-color: rgba(8, 145, 178, 0.25);
+    color: var(--accent-primary);
+    box-shadow: 0 4px 10px rgba(8,145,178,0.12);
+}
+
+.filter-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.filter-count {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(0,0,0,0.05);
+    padding: 2px 6px;
+    border-radius: 999px;
+}
+
+.filter-item.active .filter-count {
+    background: var(--accent-primary);
+    color: white;
+}
