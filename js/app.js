@@ -1,5 +1,5 @@
 /**
- * AI Knowledge Nexus - Main Application (FIXED)
+ * AI Knowledge Nexus - Main Application (FINAL FIX)
  */
 
 class App {
@@ -11,6 +11,9 @@ class App {
             selectedTerm: null
         };
         this.initialized = false;
+        
+        // FIX: Autostart the application
+        this.init(); 
     }
     
     init() {
@@ -25,39 +28,44 @@ class App {
     setup() {
         console.log('Setting up app...');
         
-        // Check dependencies
-        if (!window.KnowledgeBase) {
-            console.error('KnowledgeBase not loaded');
-            return;
+        try {
+            // Check dependencies
+            if (!window.KnowledgeBase) {
+                console.error('KnowledgeBase not loaded');
+                return;
+            }
+            if (!window.KnowledgeGraph) {
+                console.error('KnowledgeGraph not loaded');
+                return;
+            }
+            if (!window.KnowledgeUtils) {
+                console.error('KnowledgeUtils not loaded');
+                return;
+            }
+            
+            // Initialize graph
+            this.graph = new KnowledgeGraph('graphCanvas');
+            this.graph.loadData();
+            
+            // Set callbacks
+            this.graph.onNodeSelect = (term) => this.showTermDetail(term);
+            this.graph.onHoverChange = (node, e) => this.handleHover(node, e);
+            
+            // Render UI
+            this.renderCategories();
+            this.renderLegend();
+            this.updateStats();
+            this.populateCategorySelect();
+            
+            // Bind events
+            this.bindEvents();
+            
+            this.initialized = true;
+            console.log('App initialized successfully');
+            
+        } catch (error) {
+            console.error("CRITICAL ERROR IN SETUP:", error);
         }
-        if (!window.KnowledgeGraph) {
-            console.error('KnowledgeGraph not loaded');
-            return;
-        }
-        if (!window.KnowledgeUtils) {
-            console.error('KnowledgeUtils not loaded');
-            return;
-        }
-        
-        // Initialize graph
-        this.graph = new KnowledgeGraph('graphCanvas');
-        this.graph.loadData();
-        
-        // Set callbacks
-        this.graph.onNodeSelect = (term) => this.showTermDetail(term);
-        this.graph.onHoverChange = (node, e) => this.handleHover(node, e);
-        
-        // Render UI
-        this.renderCategories();
-        this.renderLegend();
-        this.updateStats();
-        this.populateCategorySelect();
-        
-        // Bind events
-        this.bindEvents();
-        
-        this.initialized = true;
-        console.log('App initialized');
     }
     
     bindEvents() {
@@ -83,13 +91,11 @@ class App {
             }
         });
         
-        // Sidebar toggle - FIXED for mobile/desktop compatibility
+        // Sidebar toggle
         const toggleBtn = document.getElementById('toggleSidebar');
         if (toggleBtn) {
             toggleBtn.addEventListener('click', () => {
                 const sidebar = document.getElementById('sidebar');
-                
-                // On desktop, we toggle 'collapsed'. On mobile, we toggle 'open'.
                 if (window.innerWidth <= 1024) {
                     sidebar.classList.toggle('open'); 
                 } else {
@@ -97,7 +103,6 @@ class App {
                 }
             });
         }
-        // REMOVED THE EXTRA } HERE
         
         // Category list
         const categoryList = document.getElementById('categoryList');
@@ -397,5 +402,5 @@ class App {
     }
 }
 
-// Initialize
-const app = new App();
+// Initialize and expose to window for diagnostic script
+window.app = new App();
