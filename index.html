@@ -220,8 +220,56 @@
         <div class="tooltip" id="tooltip"></div>
     </div>
 
-    <script src="js/data.js"></script>
-    <script src="js/graph.js"></script>
-    <script src="js/app.js"></script>
+    <!-- SCRIPT LOADER WITH DIAGNOSTICS -->
+    <script>
+        console.log("--- System Boot Sequence Initiated ---");
+        
+        function loadScript(src, callback) {
+            var script = document.createElement('script');
+            script.src = src;
+            script.onload = function() {
+                console.log("✅ SUCCESS: Loaded " + src);
+                callback(false);
+            };
+            script.onerror = function() {
+                console.error("❌ FAILED: Could not load " + src + ". Check file path/folder structure.");
+                alert("Error: Could not load " + src + ". Make sure the 'js' folder exists.");
+                callback(true);
+            };
+            document.body.appendChild(script);
+        }
+
+        // Chain loading to ensure correct order
+        loadScript("js/data.js", function(error) {
+            if (error) return;
+            
+            if (!window.KnowledgeBase) {
+                console.error("❌ CRITICAL: data.js loaded, but window.KnowledgeBase is missing!");
+                return;
+            }
+
+            loadScript("js/graph.js", function(error) {
+                if (error) return;
+
+                if (!window.KnowledgeGraph) {
+                    console.error("❌ CRITICAL: graph.js loaded, but window.KnowledgeGraph is missing!");
+                    return;
+                }
+
+                loadScript("js/app.js", function(error) {
+                    if (error) return;
+                    
+                    // Final check
+                    setTimeout(function() {
+                        if (window.app && window.app.initialized) {
+                            console.log("🚀 APP IS RUNNING.");
+                        } else {
+                            console.error("❌ APP FAILED: Scripts loaded, but App did not initialize. Check for syntax errors inside JS files.");
+                        }
+                    }, 500);
+                });
+            });
+        });
+    </script>
 </body>
 </html>
