@@ -77,7 +77,7 @@ Expand the knowledge base by editing `js/data.js`. No other code changes needed.
 **Abhishek Shah**
 *   **Portfolio**: [abhiverse01.github.io](https://abhiverse01.github.io)
 *   **Email**: abhishek.aimarine@gmail.com
-*   **LinkedIn**: [Connect with me](https://www.linkedin.com/in/abhishekshah/)
+*   **LinkedIn**: [Connect with me](https://www.linkedin.com/in/theabhishekshah/)
 
 ---
 
