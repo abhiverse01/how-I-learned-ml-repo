@@ -1,0 +1,937 @@
+     1→/* ==========================================
+     2→   KNOWLEDGE PATH SYSTEM — GOD MODE V2
+     3→   ==========================================
+     4→   Enhancements over V1:
+     5→   1.  @property for animatable gradient vars
+     6→   2.  #pathView: layered grid + radial vignette + accent glow
+     7→   3.  path-card: multi-layer shadow, glass inset, stagger entry anim
+     8→   4.  path-card::before: prismatic 3-color bar instead of flat accent
+     9→   5.  path-card::after: corner notch refined with glow + scale anim
+    10→   6.  path-card hover: deep lift shadow with accent bloom
+    11→   7.  badge: pill shape, glow ring, tabular-nums
+    12→   8.  path-start btn: gradient fill, shimmer sweep, spring active
+    13→   9.  Timeline: spine connector line with gradient + travel dot
+    14→   10. path-step: glass card with left rail glow, spring hover
+    15→   11. step-index: gradient fill, glow ring, spring scale hover
+    16→   12. step-open: refined ghost→fill transition with glow
+    17→   13. path-view-title: gradient separator rule + reveal animation
+    18→   14. Dark mode: comprehensive obsidian overrides for all surfaces
+    19→   15. Mobile: refined breakpoints, safe insets, touch targets
+    20→   ========================================== */
+    21→
+    22→/* ==========================================
+    23→   @PROPERTY — Animatable custom properties
+    24→   ========================================== */
+    25→@property --path-shimmer {
+    26→  syntax: '<percentage>';
+    27→  inherits: false;
+    28→  initial-value: -120%;
+    29→}
+    30→
+    31→@property --card-glow-opacity {
+    32→  syntax: '<number>';
+    33→  inherits: false;
+    34→  initial-value: 0;
+    35→}
+    36→
+    37→/* ==========================================
+    38→   KEYFRAMES
+    39→   ========================================== */
+    40→@keyframes pathCardEntry {
+    41→    from { opacity: 0; transform: translateY(18px) scale(0.97); }
+    42→    to   { opacity: 1; transform: translateY(0) scale(1); }
+    43→}
+    44→
+    45→@keyframes pathStepEntry {
+    46→    from { opacity: 0; transform: translateX(-16px); }
+    47→    to   { opacity: 1; transform: translateX(0); }
+    48→}
+    49→
+    50→@keyframes pathViewReveal {
+    51→    from { opacity: 0; transform: translateY(-14px); }
+    52→    to   { opacity: 1; transform: translateY(0); }
+    53→}
+    54→
+    55→@keyframes shimmerSweep {
+    56→    from { left: -120%; }
+    57→    to   { left: 180%; }
+    58→}
+    59→
+    60→@keyframes spineTravel {
+    61→    0%   { top: 0%;   opacity: 0; transform: translateX(-50%) scale(0.5); }
+    62→    6%   { opacity: 1; transform: translateX(-50%) scale(1); }
+    63→    93%  { opacity: 1; transform: translateX(-50%) scale(1); }
+    64→    100% { top: 100%; opacity: 0; transform: translateX(-50%) scale(0.5); }
+    65→}
+    66→
+    67→@keyframes spinePulse {
+    68→    0%, 100% { opacity: 0.22; }
+    69→    50%       { opacity: 0.55; }
+    70→}
+    71→
+    72→@keyframes indexPop {
+    73→    0%   { transform: scale(1); }
+    74→    40%  { transform: scale(1.22); }
+    75→    100% { transform: scale(1.12); }
+    76→}
+    77→
+    78→@keyframes badgeGlow {
+    79→    0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+    80→    50%       { box-shadow: 0 0 10px 2px rgba(99, 102, 241, 0.18); }
+    81→}
+    82→
+    83→@keyframes cardBarReveal {
+    84→    from { transform: scaleX(0); opacity: 0; }
+    85→    to   { transform: scaleX(1); opacity: 1; }
+    86→}
+    87→
+    88→/* ==========================================
+    89→   1. CONTAINER
+    90→   ========================================== */
+    91→#pathView {
+    92→    position: fixed;
+    93→    inset: 0;
+    94→    width: 100%;
+    95→    height: 100%;
+    96→    z-index: 65;
+    97→    background: var(--bg-primary);
+    98→    overflow-y: auto;
+    99→    overflow-x: hidden;
+   100→    display: flex;
+   101→    scroll-behavior: smooth;
+   102→
+   103→    /* Layered grid: radial vignette + major + minor lines */
+   104→    background-image:
+   105→        /* Depth vignette */
+   106→        radial-gradient(ellipse 90% 70% at 50% 50%, transparent 40%, rgba(0,0,0,0.022) 100%),
+   107→        /* Accent-tinted major grid */
+   108→        linear-gradient(rgba(var(--accent-primary-rgb, 8,145,178), 0.04) 1px, transparent 1px),
+   109→        linear-gradient(90deg, rgba(var(--accent-primary-rgb, 8,145,178), 0.04) 1px, transparent 1px),
+   110→        /* Neutral minor grid */
+   111→        linear-gradient(rgba(0, 0, 0, 0.018) 1px, transparent 1px),
+   112→        linear-gradient(90deg, rgba(0, 0, 0, 0.018) 1px, transparent 1px);
+   113→    background-size:
+   114→        100% 100%,
+   115→        120px 120px,
+   116→        120px 120px,
+   117→        30px 30px,
+   118→        30px 30px;
+   119→
+   120→    box-shadow: inset 0 0 100px rgba(var(--accent-primary-rgb, 8,145,178), 0.025);
+   121→}
+   122→
+   123→#pathView::-webkit-scrollbar { width: 5px; }
+   124→#pathView::-webkit-scrollbar-track { background: transparent; }
+   125→#pathView::-webkit-scrollbar-thumb {
+   126→    background: linear-gradient(to bottom, var(--border-medium), var(--border-light));
+   127→    border-radius: 9999px;
+   128→    background-clip: content-box;
+   129→}
+   130→#pathView::-webkit-scrollbar-thumb:hover {
+   131→    background: linear-gradient(to bottom, var(--border-dark), var(--border-medium));
+   132→    background-clip: content-box;
+   133→}
+   134→
+   135→/* ==========================================
+   136→   2. GALLERY GRID
+   137→   ========================================== */
+   138→.path-gallery {
+   139→    display: grid;
+   140→    font-family: var(--font-family);
+   141→    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+   142→    gap: 24px;
+   143→    padding: 24px 20px 60px;
+   144→    max-width: 1000px;
+   145→    margin: 0 auto;
+   146→    width: 100%;
+   147→}
+   148→
+   149→/* ==========================================
+   150→   3. CARD DESIGN — Prismatic lift card
+   151→   ========================================== */
+   152→.path-card {
+   153→    background: var(--bg-secondary, #fff);
+   154→    border: 1.5px solid var(--border-light);
+   155→    border-radius: 18px;
+   156→    padding: 26px;
+   157→    cursor: pointer;
+   158→    transition:
+   159→        transform 0.32s cubic-bezier(0.25, 1, 0.5, 1),
+   160→        box-shadow 0.32s ease,
+   161→        border-color 0.22s ease,
+   162→        background 0.22s ease;
+   163→    position: relative;
+   164→    overflow: hidden;
+   165→    box-shadow:
+   166→        0 1px 2px rgba(0,0,0,0.04),
+   167→        0 4px 10px rgba(0,0,0,0.05),
+   168→        inset 0 1px 0 rgba(255,255,255,0.8);
+   169→    height: 100%;
+   170→    display: flex;
+   171→    flex-direction: column;
+   172→    justify-content: space-between;
+   173→    isolation: isolate;
+   174→
+   175→    /* Stagger entry animation */
+   176→    opacity: 0;
+   177→    animation: pathCardEntry 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+   178→}
+   179→
+   180→.path-card:nth-child(1) { animation-delay: 0.05s; }
+   181→.path-card:nth-child(2) { animation-delay: 0.10s; }
+   182→.path-card:nth-child(3) { animation-delay: 0.15s; }
+   183→.path-card:nth-child(4) { animation-delay: 0.20s; }
+   184→.path-card:nth-child(5) { animation-delay: 0.25s; }
+   185→.path-card:nth-child(6) { animation-delay: 0.30s; }
+   186→.path-card:nth-child(7) { animation-delay: 0.35s; }
+   187→.path-card:nth-child(8) { animation-delay: 0.40s; }
+   188→
+   189→/* Glass highlight overlay */
+   190→.path-card-shine {
+   191→    position: absolute;
+   192→    inset: 0;
+   193→    background: linear-gradient(
+   194→        160deg,
+   195→        rgba(255,255,255,0.5) 0%,
+   196→        rgba(255,255,255,0.1) 30%,
+   197→        transparent 55%
+   198→    );
+   199→    pointer-events: none;
+   200→    border-radius: inherit;
+   201→    z-index: 1;
+   202→    transition: opacity var(--transition-base, 200ms ease);
+   203→}
+   204→
+   205→/* Shimmer sweep pseudo — fires on hover */
+   206→.path-card::before {
+   207→    content: '';
+   208→    position: absolute;
+   209→    top: 0;
+   210→    left: -120%;
+   211→    width: 55%;
+   212→    height: 100%;
+   213→    background: linear-gradient(
+   214→        105deg,
+   215→        transparent 20%,
+   216→        rgba(255,255,255,0.5) 50%,
+   217→        transparent 80%
+   218→    );
+   219→    transform: skewX(-18deg);
+   220→    pointer-events: none;
+   221→    z-index: 2;
+   222→    transition: left 0s;
+   223→}
+   224→
+   225→.path-card:hover::before {
+   226→    animation: shimmerSweep 0.65s ease forwards;
+   227→}
+   228→
+   229→/* Prismatic top accent bar */
+   230→.path-card-bar {
+   231→    position: absolute;
+   232→    top: 0; left: 0;
+   233→    width: 100%; height: 3px;
+   234→    background: linear-gradient(
+   235→        90deg,
+   236→        var(--accent-primary, #0891b2) 0%,
+   237→        var(--accent-secondary, #6366f1) 55%,
+   238→        var(--accent-tertiary, #8b5cf6) 100%
+   239→    );
+   240→    transform: scaleX(0);
+   241→    transform-origin: left;
+   242→    transition: transform 0.36s cubic-bezier(0.25, 1, 0.5, 1);
+   243→    border-radius: 18px 18px 0 0;
+   244→    pointer-events: none;
+   245→    z-index: 3;
+   246→}
+   247→
+   248→.path-card:hover .path-card-bar { transform: scaleX(1); }
+   249→
+   250→/* Corner tech notch */
+   251→.path-card::after {
+   252→    content: '';
+   253→    position: absolute;
+   254→    top: 0; right: 0;
+   255→    width: 22px; height: 22px;
+   256→    border-top: 2.5px solid rgba(var(--accent-secondary-rgb, 99,102,241), 0.55);
+   257→    border-right: 2.5px solid rgba(var(--accent-secondary-rgb, 99,102,241), 0.55);
+   258→    border-top-right-radius: 18px;
+   259→    opacity: 0;
+   260→    transition:
+   261→        opacity 0.24s ease,
+   262→        transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1),
+   263→        box-shadow 0.24s ease;
+   264→    transform: scale(0.5) translate(4px, -4px);
+   265→    pointer-events: none;
+   266→    z-index: 3;
+   267→}
+   268→
+   269→.path-card:hover::after {
+   270→    opacity: 1;
+   271→    transform: scale(1) translate(0, 0);
+   272→    box-shadow: 4px -4px 12px rgba(var(--accent-secondary-rgb, 99,102,241), 0.2);
+   273→}
+   274→
+   275→.path-card:hover {
+   276→    transform: translateY(-8px);
+   277→    border-color: rgba(var(--accent-secondary-rgb, 99,102,241), 0.3);
+   278→    box-shadow:
+   279→        0 20px 48px rgba(var(--accent-secondary-rgb, 99,102,241), 0.14),
+   280→        0 8px 16px rgba(0,0,0,0.06),
+   281→        0 0 0 1px rgba(var(--accent-secondary-rgb, 99,102,241), 0.1),
+   282→        inset 0 1px 0 rgba(255,255,255,0.9);
+   283→}
+   284→
+   285→.path-card:active { transform: translateY(-3px); }
+   286→
+   287→.path-card:focus-visible {
+   288→    outline: 2px solid var(--accent-secondary, #6366f1);
+   289→    outline-offset: 3px;
+   290→    box-shadow: 0 0 0 4px rgba(var(--accent-secondary-rgb, 99,102,241), 0.14);
+   291→}
+   292→
+   293→/* ==========================================
+   294→   4. TYPOGRAPHY
+   295→   ========================================== */
+   296→.path-title {
+   297→    font-size: clamp(1.05rem, 2.5vw, 1.2rem);
+   298→    font-weight: 800;
+   299→    color: var(--text-primary);
+   300→    margin-bottom: 8px;
+   301→    letter-spacing: -0.028em;
+   302→    line-height: 1.25;
+   303→    position: relative;
+   304→    z-index: 4;
+   305→}
+   306→
+   307→.path-desc {
+   308→    font-size: clamp(0.82rem, 1.2vw, 0.92rem);
+   309→    color: var(--text-tertiary);
+   310→    line-height: 1.65;
+   311→    flex: 1;
+   312→    margin-bottom: 18px;
+   313→    display: -webkit-box;
+   314→    -webkit-line-clamp: 2;
+   315→    -webkit-box-orient: vertical;
+   316→    overflow: hidden;
+   317→    text-overflow: ellipsis;
+   318→    position: relative;
+   319→    z-index: 4;
+   320→}
+   321→
+   322→.path-meta {
+   323→    align-self: flex-end;
+   324→    margin-bottom: 6px;
+   325→    position: relative;
+   326→    z-index: 4;
+   327→}
+   328→
+   329→/* Badge — pill chip */
+   330→.badge {
+   331→    display: inline-flex;
+   332→    align-items: center;
+   333→    gap: 5px;
+   334→    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+   335→    font-size: 0.72rem;
+   336→    font-weight: 500;
+   337→    text-transform: uppercase;
+   338→    letter-spacing: 0.08em;
+   339→    color: var(--accent-primary, #06b6d4);
+   340→    padding: 4px 11px;
+   341→    border-radius: 9999px;
+   342→    background: rgba(6, 182, 212, 0.06);
+   343→    border: 1px solid rgba(6, 182, 212, 0.18);
+   344→    font-variant-numeric: tabular-nums;
+   345→    transition:
+   346→        background var(--transition-fast, 120ms ease),
+   347→        border-color var(--transition-fast, 120ms ease);
+   348→}
+   349→
+   350→.badge::before {
+   351→    content: '';
+   352→    display: inline-block;
+   353→    width: 5px; height: 5px;
+   354→    border-radius: 50%;
+   355→    background: var(--accent-secondary, #6366f1);
+   356→    box-shadow: 0 0 5px rgba(99, 102, 241, 0.65);
+   357→    flex-shrink: 0;
+   358→}
+   359→
+   360→.path-card:hover .badge {
+   361→    background: rgba(99, 102, 241, 0.13);
+   362→    box-shadow: 0 0 12px rgba(99, 102, 241, 0.18);
+   363→}
+   364→
+   365→/* Start button — gradient fill with shimmer */
+   366→.path-start {
+   367→    display: inline-flex;
+   368→    align-items: center;
+   369→    justify-content: center;
+   370→    gap: 6px;
+   371→    padding: 9px 22px;
+   372→    border-radius: 9999px;
+   373→    border: none;
+   374→    background: linear-gradient(
+   375→        135deg,
+   376→        var(--accent-secondary, #6366f1) 0%,
+   377→        color-mix(in srgb, var(--accent-secondary, #6366f1) 80%, var(--accent-tertiary, #8b5cf6)) 100%
+   378→    );
+   379→    color: white;
+   380→    font-weight: 700;
+   381→    font-size: 0.82rem;
+   382→    letter-spacing: 0.02em;
+   383→    cursor: pointer;
+   384→    transition:
+   385→        transform var(--transition-fast, 120ms ease),
+   386→        box-shadow var(--transition-fast, 120ms ease);
+   387→    box-shadow:
+   388→        0 2px 8px rgba(99, 102, 241, 0.3),
+   389→        inset 0 1px 0 rgba(255,255,255,0.2);
+   390→    position: relative;
+   391→    overflow: hidden;
+   392→    -webkit-tap-highlight-color: transparent;
+   393→    user-select: none;
+   394→    z-index: 4;
+   395→}
+   396→
+   397→.path-start::before {
+   398→    content: '';
+   399→    position: absolute;
+   400→    top: 0; left: -100%;
+   401→    width: 55%;
+   402→    height: 100%;
+   403→    background: linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.4) 50%, transparent 80%);
+   404→    transform: skewX(-18deg);
+   405→    pointer-events: none;
+   406→    transition: left 0s;
+   407→}
+   408→
+   409→.path-start:hover::before {
+   410→    animation: shimmerSweep 0.6s ease forwards;
+   411→}
+   412→
+   413→.path-start:hover {
+   414→    transform: translateY(-2px);
+   415→    box-shadow:
+   416→        0 6px 18px rgba(99, 102, 241, 0.42),
+   417→        inset 0 1px 0 rgba(255,255,255,0.25);
+   418→}
+   419→
+   420→.path-start:active {
+   421→    transform: translateY(0) scale(0.97);
+   422→    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+   423→}
+   424→
+   425→/* ==========================================
+   426→   5. PATH VIEWER — Title bar
+   427→   ========================================== */
+   428→.path-view-title {
+   429→    display: flex;
+   430→    justify-content: space-between;
+   431→    align-items: center;
+   432→    width: 100%;
+   433→    max-width: 820px;
+   434→    margin: 0 auto 32px;
+   435→    padding: 0 20px 24px;
+   436→    position: relative;
+   437→    animation: pathViewReveal 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+   438→}
+   439→
+   440→/* Gradient separator rule */
+   441→.path-view-title::after {
+   442→    content: '';
+   443→    position: absolute;
+   444→    bottom: 0; left: 20px;
+   445→    right: 20px;
+   446→    height: 1px;
+   447→    background: linear-gradient(
+   448→        90deg,
+   449→        var(--accent-secondary, #6366f1) 0%,
+   450→        var(--accent-primary, #0891b2) 40%,
+   451→        rgba(var(--accent-tertiary-rgb, 139,92,246), 0.35) 70%,
+   452→        transparent 90%
+   453→    );
+   454→    transform-origin: left center;
+   455→    animation: cardBarReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+   456→}
+   457→
+   458→/* Ambient glow under rule */
+   459→.path-view-title::before {
+   460→    content: '';
+   461→    position: absolute;
+   462→    bottom: -3px; left: 20px;
+   463→    width: 50%; height: 6px;
+   464→    background: radial-gradient(
+   465→        ellipse at left,
+   466→        rgba(var(--accent-secondary-rgb, 99,102,241), 0.16),
+   467→        transparent 75%
+   468→    );
+   469→    filter: blur(4px);
+   470→    pointer-events: none;
+   471→}
+   472→
+   473→/* ==========================================
+   474→   6. TIMELINE — Spine + steps
+   475→   ========================================== */
+   476→.path-steps-container {
+   477→    max-width: 820px;
+   478→    margin: 0 auto;
+   479→    padding: 0 20px 80px;
+   480→    display: flex;
+   481→    flex-direction: column;
+   482→    gap: 0;
+   483→    position: relative;
+   484→}
+   485→
+   486→/* Animated spine line */
+   487→.path-steps-container::before {
+   488→    content: '';
+   489→    position: absolute;
+   490→    top: 16px; bottom: 16px;
+   491→    left: calc(20px + 16px); /* align to center of step-index */
+   492→    width: 2px;
+   493→    background: linear-gradient(
+   494→        to bottom,
+   495→        transparent 0%,
+   496→        var(--accent-secondary, #6366f1) 8%,
+   497→        var(--accent-primary, #0891b2) 50%,
+   498→        rgba(var(--accent-tertiary-rgb, 139,92,246), 0.6) 85%,
+   499→        transparent 100%
+   500→    );
+   501→    border-radius: 9999px;
+   502→    animation: spinePulse 3s ease-in-out infinite;
+   503→    pointer-events: none;
+   504→    z-index: 0;
+   505→}
+   506→
+   507→/* Travelling dot on spine */
+   508→.path-steps-container::after {
+   509→    content: '';
+   510→    position: absolute;
+   511→    top: 0;
+   512→    left: calc(20px + 16px - 4px); /* center on spine */
+   513→    width: 8px; height: 8px;
+   514→    border-radius: 50%;
+   515→    background: var(--accent-secondary, #6366f1);
+   516→    box-shadow:
+   517→        0 0 0 3px rgba(99, 102, 241, 0.18),
+   518→        0 0 12px rgba(99, 102, 241, 0.7),
+   519→        0 0 24px rgba(99, 102, 241, 0.3);
+   520→    animation: spineTravel 3.2s ease-in-out infinite;
+   521→    pointer-events: none;
+   522→    z-index: 1;
+   523→}
+   524→
+   525→/* ==========================================
+   526→   7. TIMELINE STEP — Glass card with rail
+   527→   ========================================== */
+   528→.path-step {
+   529→    display: flex;
+   530→    align-items: center;
+   531→    gap: 18px;
+   532→    padding: 20px 22px;
+   533→    background: var(--bg-secondary, #fff);
+   534→    border: 1.5px solid var(--border-light);
+   535→    border-radius: 14px;
+   536→    border-left: 3.5px solid var(--accent-secondary, #6366f1);
+   537→    transition:
+   538→        transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1),
+   539→        box-shadow 0.25s ease,
+   540→        border-color 0.2s ease,
+   541→        background 0.2s ease;
+   542→    position: relative;
+   543→    z-index: 2;
+   544→    box-shadow:
+   545→        0 1px 3px rgba(0,0,0,0.04),
+   546→        0 4px 8px rgba(0,0,0,0.04),
+   547→        inset 0 1px 0 rgba(255,255,255,0.7);
+   548→    margin-bottom: 16px;
+   549→    /* Stagger entry */
+   550→    opacity: 0;
+   551→    animation: pathStepEntry 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+   552→}
+   553→
+   554→.path-step:nth-child(1)  { animation-delay: 0.06s; }
+   555→.path-step:nth-child(2)  { animation-delay: 0.12s; }
+   556→.path-step:nth-child(3)  { animation-delay: 0.18s; }
+   557→.path-step:nth-child(4)  { animation-delay: 0.24s; }
+   558→.path-step:nth-child(5)  { animation-delay: 0.30s; }
+   559→.path-step:nth-child(6)  { animation-delay: 0.36s; }
+   560→.path-step:nth-child(7)  { animation-delay: 0.42s; }
+   561→.path-step:nth-child(8)  { animation-delay: 0.48s; }
+   562→.path-step:nth-child(9)  { animation-delay: 0.54s; }
+   563→.path-step:nth-child(10) { animation-delay: 0.60s; }
+   564→
+   565→/* Left rail glow on hover */
+   566→.path-step::before {
+   567→    content: '';
+   568→    position: absolute;
+   569→    left: -3.5px; top: 15%; bottom: 15%;
+   570→    width: 3.5px;
+   571→    border-radius: 0 3px 3px 0;
+   572→    background: linear-gradient(
+   573→        to bottom,
+   574→        var(--accent-secondary, #6366f1),
+   575→        var(--accent-primary, #0891b2)
+   576→    );
+   577→    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+   578→    transition: box-shadow 0.25s ease;
+   579→    pointer-events: none;
+   580→    border-radius: 0 2px 2px 0;
+   581→}
+   582→
+   583→.path-step:hover::before {
+   584→    box-shadow: -4px 0 14px rgba(99, 102, 241, 0.45);
+   585→}
+   586→
+   587→/* Inner ambient glow on hover */
+   588→.path-step::after {
+   589→    content: '';
+   590→    position: absolute;
+   591→    inset: 0;
+   592→    border-radius: inherit;
+   593→    background: linear-gradient(
+   594→        to right,
+   595→        rgba(99, 102, 241, 0.04) 0%,
+   596→        transparent 60%
+   597→    );
+   598→    opacity: 0;
+   599→    transition: opacity var(--transition-fast, 120ms ease);
+   600→    pointer-events: none;
+   601→}
+   602→
+   603→.path-step:hover::after { opacity: 1; }
+   604→
+   605→.path-step:hover {
+   606→    border-color: rgba(var(--accent-secondary-rgb, 99,102,241), 0.45);
+   607→    transform: translateX(5px);
+   608→    box-shadow:
+   609→        0 6px 20px rgba(var(--accent-secondary-rgb, 99,102,241), 0.12),
+   610→        0 2px 6px rgba(0,0,0,0.06),
+   611→        inset 0 1px 0 rgba(255,255,255,0.8);
+   612→    background: var(--bg-secondary, #fff);
+   613→}
+   614→
+   615→.path-step:last-child { margin-bottom: 0; }
+   616→
+   617→/* ==========================================
+   618→   8. STEP INDEX — Gradient orb
+   619→   ========================================== */
+   620→.step-index {
+   621→    width: 34px;
+   622→    height: 34px;
+   623→    border-radius: 50%;
+   624→    background: linear-gradient(
+   625→        135deg,
+   626→        var(--accent-secondary, #6366f1) 0%,
+   627→        color-mix(in srgb, var(--accent-secondary, #6366f1) 70%, var(--accent-primary, #0891b2)) 100%
+   628→    );
+   629→    color: white;
+   630→    display: flex;
+   631→    align-items: center;
+   632→    justify-content: center;
+   633→    font-size: 0.85rem;
+   634→    font-weight: 800;
+   635→    font-variant-numeric: tabular-nums;
+   636→    flex-shrink: 0;
+   637→    box-shadow:
+   638→        0 0 0 3px rgba(99, 102, 241, 0.15),
+   639→        0 0 12px rgba(99, 102, 241, 0.4),
+   640→        inset 0 1px 0 rgba(255,255,255,0.25);
+   641→    transition:
+   642→        transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+   643→        box-shadow 0.25s ease;
+   644→    position: relative;
+   645→    z-index: 3;
+   646→    /* Shine overlay */
+   647→    overflow: hidden;
+   648→}
+   649→
+   650→.step-index::before {
+   651→    content: '';
+   652→    position: absolute;
+   653→    inset: 0;
+   654→    background: linear-gradient(135deg, rgba(255,255,255,0.28) 0%, transparent 55%);
+   655→    pointer-events: none;
+   656→    border-radius: 50%;
+   657→}
+   658→
+   659→.path-step:hover .step-index {
+   660→    animation: indexPop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+   661→    box-shadow:
+   662→        0 0 0 4px rgba(99, 102, 241, 0.22),
+   663→        0 0 20px rgba(99, 102, 241, 0.6),
+   664→        inset 0 1px 0 rgba(255,255,255,0.3);
+   665→}
+   666→
+   667→/* Step name */
+   668→.step-name {
+   669→    flex: 1;
+   670→    font-size: 0.97rem;
+   671→    font-weight: 700;
+   672→    color: var(--text-primary);
+   673→    letter-spacing: -0.012em;
+   674→    line-height: 1.35;
+   675→    position: relative;
+   676→    z-index: 3;
+   677→}
+   678→
+   679→/* ==========================================
+   680→   9. STEP OPEN BUTTON — Ghost→fill
+   681→   ========================================== */
+   682→.step-open {
+   683→    padding: 7px 15px;
+   684→    border-radius: 9999px;
+   685→    border: 1.5px solid var(--border-medium);
+   686→    background: transparent;
+   687→    color: var(--text-secondary);
+   688→    cursor: pointer;
+   689→    font-weight: 700;
+   690→    font-size: 0.82rem;
+   691→    letter-spacing: 0.01em;
+   692→    transition:
+   693→        background var(--transition-fast, 120ms ease),
+   694→        color var(--transition-fast, 120ms ease),
+   695→        border-color var(--transition-fast, 120ms ease),
+   696→        transform var(--transition-fast, 120ms ease),
+   697→        box-shadow var(--transition-fast, 120ms ease);
+   698→    flex-shrink: 0;
+   699→    position: relative;
+   700→    z-index: 3;
+   701→    -webkit-tap-highlight-color: transparent;
+   702→}
+   703→
+   704→.step-open:hover {
+   705→    background: linear-gradient(
+   706→        135deg,
+   707→        var(--accent-secondary, #6366f1) 0%,
+   708→        color-mix(in srgb, var(--accent-secondary, #6366f1) 80%, var(--accent-primary, #0891b2)) 100%
+   709→    );
+   710→    color: white;
+   711→    border-color: transparent;
+   712→    transform: scale(1.04);
+   713→    box-shadow:
+   714→        0 4px 14px rgba(99, 102, 241, 0.38),
+   715→        inset 0 1px 0 rgba(255,255,255,0.2);
+   716→}
+   717→
+   718→.step-open:active {
+   719→    transform: scale(0.97);
+   720→    box-shadow: 0 1px 6px rgba(99, 102, 241, 0.25);
+   721→}
+   722→
+   723→.step-open:focus-visible {
+   724→    outline: 2px solid var(--accent-secondary, #6366f1);
+   725→    outline-offset: 2px;
+   726→}
+   727→
+   728→/* ==========================================
+   729→   10. DARK MODE — Obsidian overrides
+   730→   ========================================== */
+   731→[data-theme="dark"] #pathView {
+   732→    background-image:
+   733→        radial-gradient(ellipse 90% 70% at 50% 50%, transparent 40%, rgba(0,0,0,0.2) 100%),
+   734→        linear-gradient(rgba(var(--accent-primary-rgb, 8,145,178), 0.07) 1px, transparent 1px),
+   735→        linear-gradient(90deg, rgba(var(--accent-primary-rgb, 8,145,178), 0.07) 1px, transparent 1px),
+   736→        linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+   737→        linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+   738→    background-size:
+   739→        100% 100%,
+   740→        120px 120px,
+   741→        120px 120px,
+   742→        30px 30px,
+   743→        30px 30px;
+   744→    box-shadow: inset 0 0 100px rgba(var(--accent-secondary-rgb, 99,102,241), 0.04);
+   745→}
+   746→
+   747→[data-theme="dark"] .path-card {
+   748→    background: var(--bg-secondary);
+   749→    border-color: var(--border-medium);
+   750→    box-shadow:
+   751→        0 1px 2px rgba(0,0,0,0.5),
+   752→        0 4px 12px rgba(0,0,0,0.35),
+   753→        inset 0 1px 0 rgba(255,255,255,0.04);
+   754→}
+   755→
+   756→[data-theme="dark"] .path-card:hover {
+   757→    border-color: rgba(var(--accent-secondary-rgb, 99,102,241), 0.35);
+   758→    background: var(--bg-tertiary);
+   759→    box-shadow:
+   760→        0 20px 48px rgba(var(--accent-secondary-rgb, 99,102,241), 0.18),
+   761→        0 8px 16px rgba(0,0,0,0.45),
+   762→        0 0 0 1px rgba(var(--accent-secondary-rgb, 99,102,241), 0.12);
+   763→}
+   764→
+   765→[data-theme="dark"] .path-card-shine { display: none; }
+   766→
+   767→[data-theme="dark"] .path-title { color: var(--text-primary); }
+   768→[data-theme="dark"] .path-desc  { color: var(--text-tertiary); }
+   769→
+   770→[data-theme="dark"] .badge {
+   771→    background: rgba(99, 102, 241, 0.14);
+   772→    border-color: rgba(99, 102, 241, 0.3);
+   773→}
+   774→
+   775→[data-theme="dark"] .path-start {
+   776→    box-shadow:
+   777→        0 2px 10px rgba(99, 102, 241, 0.4),
+   778→        inset 0 1px 0 rgba(255,255,255,0.12);
+   779→}
+   780→[data-theme="dark"] .path-start:hover {
+   781→    box-shadow:
+   782→        0 8px 24px rgba(99, 102, 241, 0.52),
+   783→        inset 0 1px 0 rgba(255,255,255,0.15);
+   784→}
+   785→
+   786→[data-theme="dark"] .path-step {
+   787→    background: var(--bg-secondary);
+   788→    border-color: var(--border-medium);
+   789→    border-left-color: rgba(var(--accent-secondary-rgb, 99,102,241), 0.55);
+   790→    box-shadow:
+   791→        0 1px 3px rgba(0,0,0,0.5),
+   792→        0 4px 10px rgba(0,0,0,0.3),
+   793→        inset 0 1px 0 rgba(255,255,255,0.03);
+   794→}
+   795→
+   796→[data-theme="dark"] .path-step:hover {
+   797→    background: var(--bg-tertiary);
+   798→    border-color: rgba(var(--accent-secondary-rgb, 99,102,241), 0.4);
+   799→    box-shadow:
+   800→        0 8px 24px rgba(var(--accent-secondary-rgb, 99,102,241), 0.2),
+   801→        0 2px 8px rgba(0,0,0,0.4),
+   802→        inset 0 1px 0 rgba(255,255,255,0.03);
+   803→}
+   804→
+   805→[data-theme="dark"] .step-index {
+   806→    box-shadow:
+   807→        0 0 0 3px rgba(99, 102, 241, 0.22),
+   808→        0 0 18px rgba(99, 102, 241, 0.55),
+   809→        inset 0 1px 0 rgba(255,255,255,0.15);
+   810→}
+   811→
+   812→[data-theme="dark"] .path-step:hover .step-index {
+   813→    box-shadow:
+   814→        0 0 0 4px rgba(99, 102, 241, 0.3),
+   815→        0 0 28px rgba(99, 102, 241, 0.75),
+   816→        inset 0 1px 0 rgba(255,255,255,0.2);
+   817→}
+   818→
+   819→[data-theme="dark"] .step-name { color: var(--text-primary); }
+   820→
+   821→[data-theme="dark"] .step-open {
+   822→    border-color: var(--border-dark);
+   823→    color: var(--text-tertiary);
+   824→}
+   825→[data-theme="dark"] .step-open:hover {
+   826→    box-shadow:
+   827→        0 4px 16px rgba(99, 102, 241, 0.45),
+   828→        inset 0 1px 0 rgba(255,255,255,0.12);
+   829→}
+   830→
+   831→[data-theme="dark"] .path-view-title::after { opacity: 0.72; }
+   832→[data-theme="dark"] .path-view-title::before { opacity: 0.55; }
+   833→
+   834→[data-theme="dark"] .path-steps-container::before { opacity: 0.5; }
+   835→[data-theme="dark"] .path-steps-container::after {
+   836→    box-shadow:
+   837→        0 0 0 3px rgba(99, 102, 241, 0.25),
+   838→        0 0 20px rgba(99, 102, 241, 0.85),
+   839→        0 0 40px rgba(99, 102, 241, 0.4);
+   840→}
+   841→
+   842→/* ==========================================
+   843→   11. MOBILE — Responsive breakpoints
+   844→   ========================================== */
+   845→@media (max-width: 768px) {
+   846→    #pathView { z-index: 200; }
+   847→
+   848→    .path-gallery {
+   849→        grid-template-columns: 1fr;
+   850→        padding: 16px 16px 60px;
+   851→        gap: 14px;
+   852→    }
+   853→
+   854→    .path-card {
+   855→        flex-direction: row;
+   856→        align-items: center;
+   857→        height: auto;
+   858→        padding: 16px 18px;
+   859→        gap: 14px;
+   860→        border-radius: 14px;
+   861→    }
+   862→
+   863→    .path-desc { display: none; margin-bottom: 0; }
+   864→    .path-meta { display: none; }
+   865→    .path-title { font-size: 0.95rem; margin-bottom: 0; }
+   866→
+   867→    .path-start {
+   868→        margin-left: auto;
+   869→        padding: 8px 16px;
+   870→        font-size: 0.78rem;
+   871→        flex-shrink: 0;
+   872→    }
+   873→
+   874→    .path-view-title {
+   875→        padding: 0 16px 20px;
+   876→        margin-bottom: 20px;
+   877→    }
+   878→
+   879→    .path-steps-container {
+   880→        padding: 0 16px 60px;
+   881→    }
+   882→
+   883→    /* Spine aligns to mobile index size */
+   884→    .path-steps-container::before {
+   885→        left: calc(16px + 14px);
+   886→    }
+   887→    .path-steps-container::after {
+   888→        left: calc(16px + 14px - 4px);
+   889→    }
+   890→
+   891→    .path-step {
+   892→        padding: 14px 16px;
+   893→        gap: 14px;
+   894→        border-radius: 12px;
+   895→        margin-bottom: 14px;
+   896→    }
+   897→
+   898→    .step-index {
+   899→        width: 28px; height: 28px;
+   900→        font-size: 0.78rem;
+   901→    }
+   902→
+   903→    .step-name { font-size: 0.9rem; }
+   904→
+   905→    .step-open {
+   906→        padding: 6px 12px;
+   907→        font-size: 0.78rem;
+   908→    }
+   909→
+   910→    /* Ensure minimum 44px touch targets */
+   911→    .path-start,
+   912→    .step-open {
+   913→        min-height: 40px;
+   914→    }
+   915→}
+   916→
+   917→@media (max-width: 480px) {
+   918→    .path-card { padding: 14px 16px; }
+   919→    .path-title { font-size: 0.88rem; }
+   920→    .step-name { font-size: 0.85rem; }
+   921→}
+   922→
+   923→/* Reduced motion */
+   924→@media (prefers-reduced-motion: reduce) {
+   925→    .path-card,
+   926→    .path-step,
+   927→    .step-index,
+   928→    .badge {
+   929→        animation: none !important;
+   930→        opacity: 1 !important;
+   931→    }
+   932→    .path-steps-container::before,
+   933→    .path-steps-container::after {
+   934→        animation: none !important;
+   935→    }
+   936→}
+   937→

@@ -1,0 +1,1277 @@
+     1→'use client'
+     2→
+     3→import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+     4→import { useTitanMLStore, type Term, type Category, type KnowledgePath } from '@/store/useTitanMLStore'
+     5→import { KnowledgeGraph } from '@/lib/graph-engine'
+     6→
+     7→// ─── Utility functions ───
+     8→function escapeHTML(text: string): string {
+     9→  return String(text ?? '')
+    10→    .replace(/&/g, '&amp;')
+    11→    .replace(/</g, '&lt;')
+    12→    .replace(/>/g, '&gt;')
+    13→    .replace(/"/g, '&quot;')
+    14→    .replace(/'/g, '&#39;')
+    15→}
+    16→
+    17→function parseMarkdown(text: string): string {
+    18→  if (!text) return ''
+    19→  let out = escapeHTML(text)
+    20→  out = out.replace(/```([\s\S]*?)```/g, (_, code) => `<pre><code>${code.trim()}</code></pre>`)
+    21→  out = out.replace(/`([^`\n]+)`/g, '<code>$1</code>')
+    22→  out = out.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    23→  out = out.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
+    24→  out = out.replace(/^### (.+)$/gm, '<h4>$1</h4>')
+    25→  out = out.replace(/^## (.+)$/gm, '<h3>$1</h3>')
+    26→  out = out.replace(/^# (.+)$/gm, '<h2>$1</h2>')
+    27→  out = out.replace(
+    28→    /(?:^- .+\n?)+/gm,
+    29→    (block) =>
+    30→      '<ul>' +
+    31→      block
+    32→        .trim()
+    33→        .split('\n')
+    34→        .map((l) => `<li>${l.replace(/^- /, '').trim()}</li>`)
+    35→        .join('') +
+    36→      '</ul>'
+    37→  )
+    38→  out = out.replace(
+    39→    /(?:^\d+\. .+\n?)+/gm,
+    40→    (block) =>
+    41→      '<ol>' +
+    42→      block
+    43→        .trim()
+    44→        .split('\n')
+    45→        .map((l) => `<li>${l.replace(/^\d+\. /, '').trim()}</li>`)
+    46→        .join('') +
+    47→      '</ol>'
+    48→  )
+    49→  const BLOCK_START = /^<(ul|ol|pre|h[1-6]|blockquote)/
+    50→  out = out
+    51→    .split(/\n{2,}/)
+    52→    .map((block) => {
+    53→      const trimmed = block.trim()
+    54→      if (!trimmed) return ''
+    55→      if (BLOCK_START.test(trimmed)) return trimmed
+    56→      return `<p>${trimmed.replace(/\n/g, '<br>')}</p>`
+    57→    })
+    58→    .filter(Boolean)
+    59→    .join('')
+    60→  return out
+    61→}
+    62→
+    63→// ─── Architecture step renderer ───
+    64→function renderArchSteps(steps: { label: string; desc?: string; type?: string; inputId?: string; children?: typeof steps }[]): string {
+    65→  if (!steps || !steps.length) return ''
+    66→  return steps
+    67→    .map((step) => {
+    68→      let typeClass = `step-type-${step.type || 'process'}`
+    69→      let childrenHtml = ''
+    70→      if (step.children && step.children.length > 0) {
+    71→        typeClass += ' step-type-container'
+    72→        childrenHtml = `<div class="step-children">${renderArchSteps(step.children)}</div>`
+    73→      }
+    74→      return `
+    75→        <div class="flow-step">
+    76→          <div class="step-box ${typeClass}">
+    77→            <div class="step-label">${escapeHTML(step.label)}</div>
+    78→            ${step.desc ? `<div class="step-desc">${escapeHTML(step.desc)}</div>` : ''}
+    79→          </div>
+    80→          ${childrenHtml}
+    81→        </div>
+    82→      `
+    83→    })
+    84→    .join('')
+    85→}
+    86→
+    87→// ─── Loading Screen Component ───
+    88→const EMOJIS = ['\uD83E\uDDE0', '\uD83E\uDD16', '\uD83D\uDCA1', '\u26A1']
+    89→
+    90→function LoadingScreen() {
+    91→  const [emojiIndex, setEmojiIndex] = useState(0)
+    92→
+    93→  useEffect(() => {
+    94→    const id = setInterval(() => setEmojiIndex((i) => (i + 1) % EMOJIS.length), 800)
+    95→    return () => clearInterval(id)
+    96→  }, [])
+    97→
+    98→  return (
+    99→    <div id="initial-loader">
+   100→      <div className="loader-spinner" />
+   101→      <p className="loader-text">
+   102→        Initializing Knowledge Base... {EMOJIS[emojiIndex]}
+   103→      </p>
+   104→    </div>
+   105→  )
+   106→}
+   107→
+   108→// ─── Toast Component ───
+   109→interface ToastData {
+   110→  message: string
+   111→  type: string
+   112→  key: number
+   113→  exiting: boolean
+   114→}
+   115→
+   116→function Toast({ toast }: { toast: ToastData }) {
+   117→  const bg =
+   118→    toast.type === 'success'
+   119→      ? 'var(--accent-success, #10b981)'
+   120→      : toast.type === 'error'
+   121→        ? 'var(--accent-danger, #ef4444)'
+   122→        : 'var(--accent-primary, #0891b2)'
+   123→
+   124→  return (
+   125→    <div
+   126→      key={toast.key}
+   127→      className={`app-toast ${toast.exiting ? 'toast-exit' : ''}`}
+   128→      style={{ background: bg }}
+   129→      role="status"
+   130→      aria-live="polite"
+   131→    >
+   132→      {toast.message}
+   133→    </div>
+   134→  )
+   135→}
+   136→
+   137→// ─── Main Page Component ───
+   138→export default function Home() {
+   139→  // Select only the state slices we need to minimize re-renders
+   140→  const isLoaded = useTitanMLStore((s) => s.isLoaded)
+   141→  const isDarkMode = useTitanMLStore((s) => s.isDarkMode)
+   142→  const activeView = useTitanMLStore((s) => s.activeView)
+   143→  const detailPanelOpen = useTitanMLStore((s) => s.detailPanelOpen)
+   144→  const addModalOpen = useTitanMLStore((s) => s.addModalOpen)
+   145→  const selectedTerm = useTitanMLStore((s) => s.selectedTerm)
+   146→  const selectedCategory = useTitanMLStore((s) => s.selectedCategory)
+   147→  const selectedFilter = useTitanMLStore((s) => s.selectedFilter)
+   148→  const searchQuery = useTitanMLStore((s) => s.searchQuery)
+   149→  const sidebarOpen = useTitanMLStore((s) => s.sidebarOpen)
+   150→  const sidebarCollapsed = useTitanMLStore((s) => s.sidebarCollapsed)
+   151→  const categories = useTitanMLStore((s) => s.categories)
+   152→  const stats = useTitanMLStore((s) => s.stats)
+   153→  const archCurrentView = useTitanMLStore((s) => s.archCurrentView)
+   154→  const archCurrentId = useTitanMLStore((s) => s.archCurrentId)
+   155→  const pathMode = useTitanMLStore((s) => s.pathMode)
+   156→  const activePath = useTitanMLStore((s) => s.activePath)
+   157→  const pathSubPaths = useTitanMLStore((s) => s.pathSubPaths)
+   158→  const knowledgePaths = useTitanMLStore((s) => s.knowledgePaths)
+   159→  const architectures = useTitanMLStore((s) => s.architectures)
+   160→  const terms = useTitanMLStore((s) => s.terms)
+   161→
+   162→  // Actions
+   163→  const setCategories = useTitanMLStore((s) => s.setCategories)
+   164→  const setTerms = useTitanMLStore((s) => s.setTerms)
+   165→  const setDataLoaded = useTitanMLStore((s) => s.setDataLoaded)
+   166→  const setArchitectures = useTitanMLStore((s) => s.setArchitectures)
+   167→  const setKnowledgePaths = useTitanMLStore((s) => s.setKnowledgePaths)
+   168→  const setStats = useTitanMLStore((s) => s.setStats)
+   169→  const addTerm = useTitanMLStore((s) => s.addTerm)
+   170→  const setActiveView = useTitanMLStore((s) => s.setActiveView)
+   171→  const setSearchQuery = useTitanMLStore((s) => s.setSearchQuery)
+   172→  const setSelectedCategory = useTitanMLStore((s) => s.setSelectedCategory)
+   173→  const setSelectedTerm = useTitanMLStore((s) => s.setSelectedTerm)
+   174→  const setSelectedFilter = useTitanMLStore((s) => s.setSelectedFilter)
+   175→  const toggleSidebar = useTitanMLStore((s) => s.toggleSidebar)
+   176→  const closeSidebar = useTitanMLStore((s) => s.closeSidebar)
+   177→  const setDetailPanelOpen = useTitanMLStore((s) => s.setDetailPanelOpen)
+   178→  const setAddModalOpen = useTitanMLStore((s) => s.setAddModalOpen)
+   179→  const toggleDarkMode = useTitanMLStore((s) => s.toggleDarkMode)
+   180→  const navigateTerm = useTitanMLStore((s) => s.navigateTerm)
+   181→  const setArchCurrentView = useTitanMLStore((s) => s.setArchCurrentView)
+   182→  const setArchCurrentId = useTitanMLStore((s) => s.setArchCurrentId)
+   183→  const setPathMode = useTitanMLStore((s) => s.setPathMode)
+   184→  const setActivePath = useTitanMLStore((s) => s.setActivePath)
+   185→  const setPathSubPaths = useTitanMLStore((s) => s.setPathSubPaths)
+   186→
+   187→  const canvasRef = useRef<HTMLCanvasElement>(null)
+   188→  const graphRef = useRef<KnowledgeGraph | null>(null)
+   189→  const tooltipRef = useRef<HTMLDivElement>(null)
+   190→  // codeBlockRef removed — copy button is now inline React state
+   191→  const searchInputRef = useRef<HTMLInputElement>(null)
+   192→  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+   193→  const resizeObserverRef = useRef<ResizeObserver | null>(null)
+   194→  const [toast, setToast] = useState<ToastData | null>(null)
+   195→  const [loaderFading, setLoaderFading] = useState(false)
+   196→  const [isMobile, setIsMobile] = useState(false)
+   197→  const toastKeyRef = useRef(0)
+   198→
+   199→  // ─── Detect mobile (client-only, no hydration issue) ───
+   200→  useEffect(() => {
+   201→    const check = () => setIsMobile(window.innerWidth < 768)
+   202→    check()
+   203→    window.addEventListener('resize', check)
+   204→    return () => window.removeEventListener('resize', check)
+   205→  }, [])
+   206→
+   207→  // ─── Toast ───
+   208→  const showToast = useCallback((message: string, type = 'info') => {
+   209→    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+   210→    const key = ++toastKeyRef.current
+   211→    setToast({ message, type, key, exiting: false })
+   212→    toastTimerRef.current = setTimeout(() => {
+   213→      setToast((prev) => (prev ? { ...prev, exiting: true } : null))
+   214→      setTimeout(() => setToast(null), 300)
+   215→    }, 2700)
+   216→  }, [])
+   217→
+   218→  // ─── Data Loading ───
+   219→  useEffect(() => {
+   220→    let cancelled = false
+   221→
+   222→    async function loadData() {
+   223→      try {
+   224→        const [graphRes, archRes, pathRes] = await Promise.all([
+   225→          fetch('/data/graphData.json'),
+   226→          fetch('/data/architecture.json'),
+   227→          fetch('/data/knowledgePath.json'),
+   228→        ])
+   229→
+   230→        const graphData = await graphRes.json()
+   231→        const archData = await archRes.json()
+   232→        const pathData = await pathRes.json()
+   233→
+   234→        if (cancelled) return
+   235→
+   236→        const cats: Category[] = graphData.categories || []
+   237→        const ts: Term[] = (graphData.terms || []).map((t: Record<string, unknown>) => ({
+   238→          id: t.id || '',
+   239→          name: t.name || '',
+   240→          fullName: (t.fullName as string) || (t.name as string) || '',
+   241→          category: (t.category as string) || 'general',
+   242→          type: (t.type as string) || 'technique',
+   243→          shortDesc: (t.shortDesc as string) || '',
+   244→          definition: (t.definition as string) || '',
+   245→          related: (t.related as string[]) || [],
+   246→          tags: (t.tags as string[]) || [],
+   247→          codeExample: (t.codeExample as string) || '',
+   248→          createdAt: (t.createdAt as string) || new Date().toISOString(),
+   249→          importance: (t.importance as number) || 0,
+   250→        }))
+   251→
+   252→        setCategories(cats)
+   253→        setTerms(ts)
+   254→        setDataLoaded()
+   255→        setArchitectures(archData)
+   256→        setKnowledgePaths(pathData.paths || pathData)
+   257→
+   258→        // Compute stats
+   259→        const byCategory: Record<string, number> = {}
+   260→        for (let i = 0; i < cats.length; i++) {
+   261→          let count = 0
+   262→          for (let j = 0; j < ts.length; j++) {
+   263→            if (ts[j].category === cats[i].id) count++
+   264→          }
+   265→          byCategory[cats[i].id] = count
+   266→        }
+   267→        let connections = 0
+   268→        for (let i = 0; i < ts.length; i++) {
+   269→          connections += ts[i].related?.length || 0
+   270→        }
+   271→        setStats({ categories: cats.length, terms: ts.length, connections, byCategory })
+   272→      } catch (err) {
+   273→        console.error('Failed to load data:', err)
+   274→      }
+   275→    }
+   276→
+   277→    loadData()
+   278→    return () => { cancelled = true }
+   279→  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+   280→
+   281→  // ─── Loading screen fade-out trigger ───
+   282→  useEffect(() => {
+   283→    if (!isLoaded) return
+   284→    // Small delay to let the fade-in animation play, then trigger fade-out
+   285→    const t = setTimeout(() => {
+   286→      setLoaderFading(true)
+   287→    }, 400)
+   288→    return () => clearTimeout(t)
+   289→  }, [isLoaded])
+   290→
+   291→  // ─── Graph initialization ───
+   292→  useEffect(() => {
+   293→    if (!isLoaded || !canvasRef.current || graphRef.current) return
+   294→
+   295→    const graph = new KnowledgeGraph()
+   296→    graph.init(canvasRef.current)
+   297→    graphRef.current = graph
+   298→
+   299→    const cats = categories.map((c) => ({ id: c.id, name: c.name, color: c.color }))
+   300→    const termsData = terms.map((t) => ({
+   301→      id: t.id, name: t.name, fullName: t.fullName,
+   302→      category: t.category, type: t.type, shortDesc: t.shortDesc,
+   303→      tags: t.tags, related: t.related,
+   304→    }))
+   305→
+   306→    graph.loadData(cats, termsData)
+   307→
+   308→    // Set initial dark mode on graph
+   309→    if (isDarkMode) graph.setDarkMode(true)
+   310→
+   311→    graph.onNodeSelect = (term) => {
+   312→      const fullTerm = useTitanMLStore.getState().terms.find((t) => t.id === term.id)
+   313→      if (fullTerm) {
+   314→        setSelectedTerm(fullTerm)
+   315→        navigateTerm(fullTerm.id)
+   316→      }
+   317→    }
+   318→
+   319→    graph.onHoverChange = (node, e) => {
+   320→      const tooltip = tooltipRef.current
+   321→      if (!tooltip) return
+   322→      if (node?.term) {
+   323→        tooltip.innerHTML = `<strong>${escapeHTML(node.term.name)}</strong><br><span style="color:var(--text-muted);">${escapeHTML(node.term.shortDesc ?? '')}</span>`
+   324→        const tipW = 220
+   325→        const x = Math.min((e as MouseEvent).clientX + 12, window.innerWidth - tipW - 8)
+   326→        const y = (e as MouseEvent).clientY + 12
+   327→        tooltip.style.left = `${x}px`
+   328→        tooltip.style.top = `${y}px`
+   329→        tooltip.classList.add('visible')
+   330→      } else {
+   331→        tooltip.classList.remove('visible')
+   332→      }
+   333→    }
+   334→
+   335→    // Resize observer
+   336→    if (canvasRef.current.parentElement && window.ResizeObserver) {
+   337→      let resizeTimer: ReturnType<typeof setTimeout>
+   338→      resizeObserverRef.current = new ResizeObserver(() => {
+   339→        clearTimeout(resizeTimer)
+   340→        resizeTimer = setTimeout(() => graph.resize(), 200)
+   341→      })
+   342→      resizeObserverRef.current.observe(canvasRef.current.parentElement)
+   343→    }
+   344→
+   345→    return () => {
+   346→      graph.destroy()
+   347→      graphRef.current = null
+   348→      if (resizeObserverRef.current) {
+   349→        resizeObserverRef.current.disconnect()
+   350→        resizeObserverRef.current = null
+   351→      }
+   352→    }
+   353→  }, [isLoaded]) // eslint-disable-line react-hooks/exhaustive-deps
+   354→
+   355→  // ─── Sync graph dark mode ───
+   356→  useEffect(() => {
+   357→    graphRef.current?.setDarkMode(isDarkMode)
+   358→  }, [isDarkMode])
+   359→
+   360→  // ─── Sync selectedNode with store ───
+   361→  useEffect(() => {
+   362→    if (!graphRef.current || !selectedTerm) return
+   363→    graphRef.current.selectedNode = graphRef.current.findNode(selectedTerm.id)
+   364→  }, [selectedTerm])
+   365→
+   366→  // ─── Search ───
+   367→  const handleSearch = useCallback(
+   368→    (value: string) => {
+   369→      setSearchQuery(value)
+   370→      graphRef.current?.highlightNodes(value || null)
+   371→    },
+   372→    [setSearchQuery]
+   373→  )
+   374→
+   375→  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+   376→  const onSearchInput = useCallback(
+   377→    (e: React.ChangeEvent<HTMLInputElement>) => {
+   378→      const value = e.target.value
+   379→      if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+   380→      searchTimerRef.current = setTimeout(() => handleSearch(value), 150)
+   381→    },
+   382→    [handleSearch]
+   383→  )
+   384→
+   385→  // ─── Keyboard shortcuts ───
+   386→  useEffect(() => {
+   387→    const handler = (e: KeyboardEvent) => {
+   388→      const active = document.activeElement
+   389→      const isTyping = active?.matches('input,textarea,[contenteditable]')
+   390→
+   391→      if (e.key === '/' && !isTyping) {
+   392→        e.preventDefault()
+   393→        searchInputRef.current?.focus()
+   394→      }
+   395→      if (e.key === 'Escape') {
+   396→        setDetailPanelOpen(false)
+   397→        setAddModalOpen(false)
+   398→        searchInputRef.current?.blur()
+   399→      }
+   400→      if (e.key === 'ArrowLeft' && e.altKey) {
+   401→        e.preventDefault()
+   402→        useTitanMLStore.getState().goBack()
+   403→      }
+   404→      if (e.key === 'ArrowRight' && e.altKey) {
+   405→        e.preventDefault()
+   406→        useTitanMLStore.getState().goForward()
+   407→      }
+   408→    }
+   409→    document.addEventListener('keydown', handler)
+   410→    return () => document.removeEventListener('keydown', handler)
+   411→  }, [setDetailPanelOpen, setAddModalOpen])
+   412→
+   413→  // ─── Copy code state ───
+   414→  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
+   415→
+   416→  const handleCopyCode = useCallback(async () => {
+   417→    const code = selectedTerm?.codeExample
+   418→    if (!code) return
+   419→    try {
+   420→      if (navigator.clipboard?.writeText) {
+   421→        await navigator.clipboard.writeText(code)
+   422→      } else {
+   423→        const ta = document.createElement('textarea')
+   424→        ta.value = code
+   425→        ta.style.cssText = 'position:fixed;top:-999px;left:-999px;opacity:0;'
+   426→        document.body.appendChild(ta)
+   427→        ta.select()
+   428→        document.execCommand('copy')
+   429→        ta.remove()
+   430→      }
+   431→      setCopyState('copied')
+   432→      setTimeout(() => setCopyState('idle'), 1500)
+   433→    } catch {
+   434→      setCopyState('failed')
+   435→      setTimeout(() => setCopyState('idle'), 1500)
+   436→    }
+   437→  }, [selectedTerm?.codeExample])
+   438→
+   439→  // Reset copy state when term changes
+   440→  useEffect(() => {
+   441→    setCopyState('idle')
+   442→  }, [selectedTerm])
+   443→
+   444→  // ─── Handlers ───
+   445→  const handleCategoryClick = useCallback((categoryId: string) => {
+   446→    if (selectedCategory === categoryId) {
+   447→      setSelectedCategory(null)
+   448→      graphRef.current?.filterByCategory(null)
+   449→    } else {
+   450→      setSelectedCategory(categoryId)
+   451→      graphRef.current?.filterByCategory(categoryId)
+   452→    }
+   453→  }, [selectedCategory, setSelectedCategory])
+   454→
+   455→  const handleFilterClick = useCallback((filter: string) => {
+   456→    setSelectedFilter(filter)
+   457→    if (graphRef.current) {
+   458→      for (let i = 0; i < graphRef.current.nodes.length; i++) {
+   459→        graphRef.current.nodes[i].visible = filter === 'all' || graphRef.current.nodes[i].term.type === filter
+   460→      }
+   461→      if (filter === 'all') setSelectedCategory(null)
+   462→    }
+   463→  }, [setSelectedFilter, setSelectedCategory])
+   464→
+   465→  const handleRelatedClick = useCallback((termId: string) => {
+   466→    const term = terms.find((t) => t.id === termId)
+   467→    if (term) {
+   468→      setSelectedTerm(term)
+   469→      navigateTerm(term.id)
+   470→    }
+   471→  }, [terms, setSelectedTerm, navigateTerm])
+   472→
+   473→  const handleAddTerm = useCallback((e: React.FormEvent<HTMLFormElement>) => {
+   474→    e.preventDefault()
+   475→    const formData = new FormData(e.currentTarget)
+   476→    const name = formData.get('name')?.toString().trim() ?? ''
+   477→    const categoryId = formData.get('category')?.toString().trim() ?? ''
+   478→    const shortDesc = formData.get('shortDesc')?.toString().trim() ?? ''
+   479→    const definition = formData.get('definition')?.toString().trim() ?? ''
+   480→    const relatedStr = formData.get('related')?.toString().trim() ?? ''
+   481→    const tagsStr = formData.get('tags')?.toString().trim() ?? ''
+   482→
+   483→    if (!name || !categoryId || !shortDesc || !definition) {
+   484→      showToast('Please fill all required fields.', 'error')
+   485→      return
+   486→    }
+   487→
+   488→    const baseId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+   489→    if (!baseId) {
+   490→      showToast('Could not generate a valid ID from that name.', 'error')
+   491→      return
+   492→    }
+   493→
+   494→    let id = baseId
+   495→    let suffix = 1
+   496→    while (terms.find((t) => t.id === id)) {
+   497→      id = `${baseId}-${++suffix}`
+   498→    }
+   499→
+   500→    const related = relatedStr
+   501→      .split(',')
+   502→      .map((s) => s.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''))
+   503→      .filter(Boolean)
+   504→
+   505→    const tags = tagsStr
+   506→      .split(',')
+   507→      .map((s) => s.trim())
+   508→      .filter(Boolean)
+   509→
+   510→    addTerm({
+   511→      id, name, fullName: name, category: categoryId, type: 'technique',
+   512→      shortDesc, definition, related, tags, codeExample: '',
+   513→      createdAt: new Date().toISOString(), importance: 0,
+   514→    })
+   515→
+   516→    if (graphRef.current) {
+   517→      const cats = categories.map((c) => ({ id: c.id, name: c.name, color: c.color }))
+   518→      const termsData = terms.map((t) => ({
+   519→        id: t.id, name: t.name, fullName: t.fullName,
+   520→        category: t.category, type: t.type, shortDesc: t.shortDesc,
+   521→        tags: t.tags, related: t.related,
+   522→      }))
+   523→      graphRef.current.loadData(cats, termsData)
+   524→    }
+   525→
+   526→    setAddModalOpen(false)
+   527→    showToast(`"${name}" added successfully!`, 'success')
+   528→  }, [addTerm, categories, terms, setAddModalOpen, showToast])
+   529→
+   530→  // Architecture handlers
+   531→  const showArchGallery = useCallback(() => {
+   532→    setActiveView('architecture')
+   533→    setArchCurrentView('gallery')
+   534→    setArchCurrentId(null)
+   535→  }, [setActiveView, setArchCurrentView, setArchCurrentId])
+   536→
+   537→  const showArchDetail = useCallback((archId: string) => {
+   538→    setArchCurrentId(archId)
+   539→    setArchCurrentView('architecture')
+   540→  }, [setArchCurrentId, setArchCurrentView])
+   541→
+   542→  const hideArchView = useCallback(() => {
+   543→    setActiveView('graph')
+   544→    setArchCurrentId(null)
+   545→  }, [setActiveView, setArchCurrentId])
+   546→
+   547→  // Knowledge path handlers
+   548→  const showPathsView = useCallback(() => {
+   549→    setActiveView('knowledge-paths')
+   550→    setPathMode('gallery')
+   551→    setActivePath(null)
+   552→    setPathSubPaths([])
+   553→  }, [setActiveView, setPathMode, setActivePath, setPathSubPaths])
+   554→
+   555→  const startPath = useCallback((path: KnowledgePath) => {
+   556→    if (path.paths && !path.steps) {
+   557→      setPathMode('subpaths')
+   558→      setPathSubPaths(path.paths)
+   559→      setActivePath(path)
+   560→    } else {
+   561→      setPathMode('steps')
+   562→      setActivePath(path)
+   563→    }
+   564→  }, [setPathMode, setPathSubPaths, setActivePath])
+   565→
+   566→  const focusTerm = useCallback((termName: string) => {
+   567→    setActiveView('graph')
+   568→    const term = terms.find((t) => t.name === termName || t.fullName === termName)
+   569→    if (term) {
+   570→      setSelectedTerm(term)
+   571→      navigateTerm(term.id)
+   572→    }
+   573→  }, [terms, setActiveView, setSelectedTerm, navigateTerm])
+   574→
+   575→  // ─── Memoized derived data ───
+   576→  const selectedTermCategory = useMemo(() => {
+   577→    if (!selectedTerm) return null
+   578→    return categories.find((c) => c.id === selectedTerm.category) ?? null
+   579→  }, [selectedTerm, categories])
+   580→
+   581→  const relatedTerms = useMemo(() => {
+   582→    if (!selectedTerm) return []
+   583→    const results: { term: Term; cat: Category | undefined }[] = []
+   584→    for (let i = 0; i < selectedTerm.related.length; i++) {
+   585→      const rt = terms.find((t) => t.id === selectedTerm.related[i])
+   586→      if (!rt) continue
+   587→      const rc = categories.find((c) => c.id === rt.category)
+   588→      results.push({ term: rt, cat: rc })
+   589→    }
+   590→    return results
+   591→  }, [selectedTerm, terms, categories])
+   592→
+   593→  const currentArch = useMemo(() => {
+   594→    if (!archCurrentId) return null
+   595→    return architectures.find((a) => a.id === archCurrentId) ?? null
+   596→  }, [archCurrentId, architectures])
+   597→
+   598→  // ─── Loading screen ───
+   599→  if (!isLoaded) {
+   600→    return <LoadingScreen />
+   601→  }
+   602→
+   603→  // Show fade-out loader + app content simultaneously
+   604→  return (
+   605→    <>
+   606→      {loaderFading && (
+   607→        <div id="initial-loader" className="fade-out">
+   608→          <div className="loader-spinner" />
+   609→          <p className="loader-text">
+   610→            Initializing Knowledge Base...
+   611→          </p>
+   612→        </div>
+   613→      )}
+   614→      <AppContent
+   615→          // Header
+   616→          searchQuery={searchQuery} onSearchInput={onSearchInput} searchInputRef={searchInputRef}
+   617→          toggleSidebar={toggleSidebar} onAddTerm={() => setAddModalOpen(true)}
+   618→          sidebarOpen={sidebarOpen} sidebarCollapsed={sidebarCollapsed} closeSidebar={closeSidebar}
+   619→          categories={categories} selectedCategory={selectedCategory} stats={stats}
+   620→          selectedFilter={selectedFilter} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode}
+   621→          handleCategoryClick={handleCategoryClick} handleFilterClick={handleFilterClick}
+   622→          showArchGallery={showArchGallery} showPathsView={showPathsView}
+   623→          // Graph
+   624→          canvasRef={canvasRef} tooltipRef={tooltipRef} graphRef={graphRef}
+   625→          // Architecture
+   626→          activeView={activeView} archCurrentView={archCurrentView} currentArch={currentArch}
+   627→          showArchDetail={showArchDetail} hideArchView={hideArchView}
+   628→          architectures={architectures} setArchCurrentView={setArchCurrentView}
+   629→          // Knowledge paths
+   630→          pathMode={pathMode} activePath={activePath}
+   631→          pathSubPaths={pathSubPaths} knowledgePaths={knowledgePaths}
+   632→          startPath={startPath} focusTerm={focusTerm}
+   633→          setPathMode={setPathMode} setActivePath={setActivePath} setPathSubPaths={setPathSubPaths}
+   634→          setActiveView={setActiveView}
+   635→          // Detail panel
+   636→          detailPanelOpen={detailPanelOpen} selectedTerm={selectedTerm}
+   637→          selectedTermCategory={selectedTermCategory} relatedTerms={relatedTerms}
+   638→          copyState={copyState}
+   639→          onCopyCode={handleCopyCode}
+   640→          onRelatedClick={handleRelatedClick} onClosePanel={() => setDetailPanelOpen(false)}
+   641→          // Modal
+   642→          addModalOpen={addModalOpen} categoriesForModal={categories}
+   643→          handleAddTerm={handleAddTerm} onCloseModal={() => setAddModalOpen(false)}
+   644→          // Toast
+   645→          toast={toast}
+   646→          // Meta
+   647→          isMobile={isMobile}
+   648→        />
+   649→      </>
+   650→    )
+   651→}
+   652→
+   653→// ─── App Content (rendered after loading) ───
+   654→interface AppContentProps {
+   655→  // Header
+   656→  searchQuery: string
+   657→  onSearchInput: (e: React.ChangeEvent<HTMLInputElement>) => void
+   658→  searchInputRef: React.RefObject<HTMLInputElement | null>
+   659→  toggleSidebar: () => void
+   660→  onAddTerm: () => void
+   661→  // Sidebar
+   662→  sidebarOpen: boolean
+   663→  sidebarCollapsed: boolean
+   664→  closeSidebar: () => void
+   665→  categories: Category[]
+   666→  selectedCategory: string | null
+   667→  stats: { categories: number; terms: number; connections: number; byCategory: Record<string, number> } | null
+   668→  selectedFilter: string
+   669→  isDarkMode: boolean
+   670→  toggleDarkMode: () => void
+   671→  handleCategoryClick: (id: string) => void
+   672→  handleFilterClick: (filter: string) => void
+   673→  showArchGallery: () => void
+   674→  showPathsView: () => void
+   675→  // Graph
+   676→  canvasRef: React.RefObject<HTMLCanvasElement | null>
+   677→  tooltipRef: React.RefObject<HTMLDivElement | null>
+   678→  graphRef: React.RefObject<KnowledgeGraph | null>
+   679→  // Architecture
+   680→  activeView: string
+   681→  archCurrentView: string
+   682→  setArchCurrentView: (view: 'gallery' | 'architecture') => void
+   683→  currentArch: { id: string; name: string; category: string; shortDesc: string; steps: { label: string; desc?: string; type?: string; children?: unknown[] }[] } | null
+   684→  architectures: { id: string; name: string; category: string; shortDesc: string; steps: unknown[] }[]
+   685→  showArchDetail: (id: string) => void
+   686→  hideArchView: () => void
+   687→  // Knowledge paths
+   688→  pathMode: string
+   689→  activePath: KnowledgePath | null
+   690→  pathSubPaths: KnowledgePath[]
+   691→  knowledgePaths: KnowledgePath[]
+   692→  startPath: (path: KnowledgePath) => void
+   693→  focusTerm: (name: string) => void
+   694→  setPathMode: (mode: 'gallery' | 'steps' | 'subpaths') => void
+   695→  setActivePath: (path: KnowledgePath | null) => void
+   696→  setPathSubPaths: (paths: KnowledgePath[]) => void
+   697→  setActiveView: (view: 'graph' | 'architecture' | 'knowledge-paths') => void
+   698→  // Detail panel
+   699→  detailPanelOpen: boolean
+   700→  selectedTerm: Term | null
+   701→  selectedTermCategory: Category | null
+   702→  relatedTerms: { term: Term; cat: Category | undefined }[]
+   703→  copyState: 'idle' | 'copied' | 'failed'
+   704→  onCopyCode: () => void
+   705→  onRelatedClick: (id: string) => void
+   706→  onClosePanel: () => void
+   707→  // Modal
+   708→  addModalOpen: boolean
+   709→  categoriesForModal: Category[]
+   710→  handleAddTerm: (e: React.FormEvent<HTMLFormElement>) => void
+   711→  onCloseModal: () => void
+   712→  // Toast
+   713→  toast: { message: string; type: string; key: number; exiting: boolean } | null
+   714→  // Meta
+   715→  isMobile: boolean
+   716→}
+   717→
+   718→function AppContent({
+   719→  searchQuery, onSearchInput, searchInputRef, toggleSidebar, onAddTerm,
+   720→  sidebarOpen, sidebarCollapsed, closeSidebar, categories, selectedCategory, stats,
+   721→  selectedFilter, isDarkMode, toggleDarkMode, handleCategoryClick, handleFilterClick,
+   722→  showArchGallery, showPathsView,
+   723→  canvasRef, tooltipRef, graphRef,
+   724→  activeView, archCurrentView, setArchCurrentView, currentArch, architectures, showArchDetail, hideArchView,
+   725→  pathMode, activePath, pathSubPaths, knowledgePaths, startPath, focusTerm,
+   726→  setPathMode, setActivePath, setPathSubPaths, setActiveView,
+   727→  detailPanelOpen, selectedTerm, selectedTermCategory, relatedTerms,
+   728→  copyState, onCopyCode,
+   729→  onRelatedClick, onClosePanel,
+   730→  addModalOpen, categoriesForModal, handleAddTerm, onCloseModal,
+   731→  toast, isMobile,
+   732→}: AppContentProps) {
+   733→  return (
+   734→    <>
+   735→      <div id="app" className="app">
+   736→        {/* Header */}
+   737→        <header className="header">
+   738→          <div className="header-left">
+   739→            <div className="logo">
+   740→              <div className="logo-icon">
+   741→                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+   742→                  <circle cx="12" cy="12" r="3" />
+   743→                  <path d="M12 2v4m0 12v4M2 12h4m12 0h4" />
+   744→                  <circle cx="12" cy="12" r="9" strokeDasharray="4 2" />
+   745→                </svg>
+   746→              </div>
+   747→              <span className="logo-text">TitanML</span>
+   748→            </div>
+   749→          </div>
+   750→
+   751→          <div className="header-center">
+   752→            <div className="search-wrapper">
+   753→              <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+   754→                <circle cx="11" cy="11" r="8" />
+   755→                <path d="m21 21-4.35-4.35" />
+   756→              </svg>
+   757→              <input
+   758→                type="text"
+   759→                className="search-input"
+   760→                ref={searchInputRef}
+   761→                placeholder="Search concepts, terms, relationships..."
+   762→                aria-label="Search"
+   763→                onChange={onSearchInput}
+   764→                defaultValue={searchQuery}
+   765→              />
+   766→              <kbd className="search-kbd">/</kbd>
+   767→            </div>
+   768→          </div>
+   769→
+   770→          <div className="header-right">
+   771→            <button className="btn btn-ghost" id="toggleSidebar" aria-label="Toggle sidebar" onClick={toggleSidebar}>
+   772→              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+   773→                <rect x="3" y="3" width="18" height="18" rx="2" />
+   774→                <path d="M9 3v18" />
+   775→              </svg>
+   776→            </button>
+   777→            <button className="btn btn-primary" id="addTermBtn" onClick={onAddTerm}>
+   778→              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+   779→                <path d="M12 5v14m-7-7h14" />
+   780→              </svg>
+   781→              <span className="btn-text">Add Term</span>
+   782→            </button>
+   783→          </div>
+   784→        </header>
+   785→
+   786→        {/* Main Layout */}
+   787→        <div className="layout">
+   788→          {/* Sidebar overlay for mobile */}
+   789→          <div
+   790→            className={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`}
+   791→            onClick={closeSidebar}
+   792→          />
+   793→
+   794→          {/* Sidebar */}
+   795→          <aside
+   796→            className={`sidebar ${sidebarOpen ? 'active' : ''} ${sidebarCollapsed ? 'collapsed' : ''}`}
+   797→            id="sidebar"
+   798→          >
+   799→            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+   800→              <div style={{ flex: 1, overflowY: 'auto' }}>
+   801→                {/* Categories */}
+   802→                <div className="sidebar-section">
+   803→                  <h3 className="sidebar-title">Categories</h3>
+   804→                  <div className="category-list" id="categoryList">
+   805→                    {categories.map((cat) => (
+   806→                      <div
+   807→                        key={cat.id}
+   808→                        className={`category-item ${selectedCategory === cat.id ? 'active' : ''}`}
+   809→                        data-category={cat.id}
+   810→                        onClick={() => handleCategoryClick(cat.id)}
+   811→                      >
+   812→                        <div className="category-dot" style={{ background: cat.color }} />
+   813→                        <span className="category-name">{cat.name}</span>
+   814→                        <span className="category-count">{stats?.byCategory[cat.id] ?? 0}</span>
+   815→                      </div>
+   816→                    ))}
+   817→                  </div>
+   818→                </div>
+   819→
+   820→                {/* Quick Filters */}
+   821→                <div className="sidebar-section">
+   822→                  <h3 className="sidebar-title">Quick Filters</h3>
+   823→                  <div className="filter-list" id="filterList">
+   824→                    {[
+   825→                      { filter: 'all', label: 'All Terms', color: 'var(--accent-primary)', count: stats?.terms ?? 0 },
+   826→                      { filter: 'core', label: 'Core Concepts', color: 'var(--accent-warning)' },
+   827→                      { filter: 'technique', label: 'Techniques', color: 'var(--accent-secondary)' },
+   828→                    ].map((f) => (
+   829→                      <div
+   830→                        key={f.filter}
+   831→                        className={`filter-item ${selectedFilter === f.filter ? 'active' : ''}`}
+   832→                        data-filter={f.filter}
+   833→                        onClick={() => handleFilterClick(f.filter)}
+   834→                      >
+   835→                        <div className="filter-dot" style={{ background: f.color }} />
+   836→                        <span>{f.label}</span>
+   837→                        {f.count !== undefined && <span className="filter-count">{f.count}</span>}
+   838→                      </div>
+   839→                    ))}
+   840→                  </div>
+   841→                </div>
+   842→
+   843→                {/* Explore */}
+   844→                <div className="sidebar-section">
+   845→                  <h3 className="sidebar-title">Explore</h3>
+   846→                  <div className="category-list">
+   847→                    <div className="category-item" style={{ cursor: 'pointer' }} onClick={showArchGallery}>
+   848→                      <div className="category-dot" style={{ background: 'var(--accent-secondary)' }} />
+   849→                      <span className="category-name">Architectures</span>
+   850→                    </div>
+   851→                  </div>
+   852→                </div>
+   853→
+   854→                {/* Knowledge Paths */}
+   855→                <div className="sidebar-section">
+   856→                  <h3 className="sidebar-title">Curriculum</h3>
+   857→                  <div className="filter-list">
+   858→                    <div className="filter-item" style={{ cursor: 'pointer' }} onClick={showPathsView}>
+   859→                      <div className="filter-dot" style={{ background: 'var(--accent-secondary)' }} />
+   860→                      <span>Knowledge Paths</span>
+   861→                    </div>
+   862→                  </div>
+   863→                </div>
+   864→
+   865→                {/* Statistics */}
+   866→                <div className="sidebar-section">
+   867→                  <h3 className="sidebar-title">Statistics</h3>
+   868→                  <div className="stats-grid">
+   869→                    <div className="stat-card">
+   870→                      <div className="stat-value">{stats?.categories ?? 0}</div>
+   871→                      <div className="stat-label">Categories</div>
+   872→                    </div>
+   873→                    <div className="stat-card">
+   874→                      <div className="stat-value">{stats?.terms ?? 0}</div>
+   875→                      <div className="stat-label">Terms</div>
+   876→                    </div>
+   877→                    <div className="stat-card">
+   878→                      <div className="stat-value">{stats?.connections ?? 0}</div>
+   879→                      <div className="stat-label">Connections</div>
+   880→                    </div>
+   881→                  </div>
+   882→                </div>
+   883→              </div>
+   884→
+   885→              {/* Sidebar Footer */}
+   886→              <div className="sidebar-footer">
+   887→                <div className="creator-card">
+   888→                  <div className="creator-avatar">AS</div>
+   889→                  <div className="creator-info">
+   890→                    <h4>Abhishek Shah</h4>
+   891→                    <p>Creator &amp; Developer</p>
+   892→                  </div>
+   893→                </div>
+   894→
+   895→                <div className="creator-links">
+   896→                  <a href="mailto:abhishek.aimarine@gmail.com" className="creator-link" title="Email">
+   897→                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+   898→                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+   899→                      <polyline points="22,6 12,13 2,6" />
+   900→                    </svg>
+   901→                    Email
+   902→                  </a>
+   903→                  <a href="https://abhiverse01.github.io" target="_blank" rel="noopener noreferrer" className="creator-link" title="Portfolio">
+   904→                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+   905→                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+   906→                      <polyline points="15 3 21 3 21 9" />
+   907→                      <line x1="10" y1="14" x2="21" y2="3" />
+   908→                    </svg>
+   909→                    Portfolio
+   910→                  </a>
+   911→                </div>
+   912→
+   913→                <button
+   914→                  id="themeToggle"
+   915→                  onClick={toggleDarkMode}
+   916→                >
+   917→                  {isDarkMode ? '\u2600\uFE0F Light Mode' : '\uD83C\uDF19 Dark Mode'}
+   918→                </button>
+   919→
+   920→                <div className="copyright-text" style={{ marginTop: 12 }}>
+   921→                  &copy; 2025 Abhishek Shah. All rights reserved.
+   922→                </div>
+   923→              </div>
+   924→            </div>
+   925→          </aside>
+   926→
+   927→          {/* Graph View */}
+   928→          <main
+   929→            className="content view-container"
+   930→            id="content"
+   931→            style={{ display: activeView === 'graph' ? 'flex' : 'none' }}
+   932→          >
+   933→            <div className="graph-container" id="graphContainer">
+   934→              <canvas id="graphCanvas" ref={canvasRef} />
+   935→
+   936→              {/* Legend */}
+   937→              <div className="legend" id="legend">
+   938→                <div className="legend-title">Node Types</div>
+   939→                <div className="legend-items" id="legendItems">
+   940→                  {categories.map((cat) => (
+   941→                    <div key={cat.id} className="legend-item">
+   942→                      <div className="legend-dot" style={{ background: cat.color }} />
+   943→                      <span>{cat.name}</span>
+   944→                    </div>
+   945→                  ))}
+   946→                </div>
+   947→              </div>
+   948→
+   949→              {/* Controls */}
+   950→              <div className="graph-controls">
+   951→                <button className="control-btn" aria-label="Zoom in" onClick={() => graphRef.current?.zoomIn()}>
+   952→                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+   953→                    <circle cx="11" cy="11" r="8" />
+   954→                    <path d="m21 21-4.35-4.35M11 8v6m-3-3h6" />
+   955→                  </svg>
+   956→                </button>
+   957→                <button className="control-btn" aria-label="Zoom out" onClick={() => graphRef.current?.zoomOut()}>
+   958→                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+   959→                    <circle cx="11" cy="11" r="8" />
+   960→                    <path d="m21 21-4.35-4.35M8 11h6" />
+   961→                  </svg>
+   962→                </button>
+   963→                <button className="control-btn" aria-label="Reset view" onClick={() => graphRef.current?.resetView()}>
+   964→                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+   965→                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+   966→                    <path d="M3 3v5h5" />
+   967→                  </svg>
+   968→                </button>
+   969→              </div>
+   970→            </div>
+   971→          </main>
+   972→        </div>
+   973→
+   974→        {/* Architecture View */}
+   975→        {activeView === 'architecture' && (
+   976→        <div
+   977→          id="archView"
+   978→          key="view-architecture"
+   979→          className="arch-visualizer view-container"
+   980→        >
+   981→          <div className="viz-header">
+   982→            <button className="viz-back-btn" onClick={archCurrentView === 'gallery' ? hideArchView : () => setArchCurrentView('gallery')}>
+   983→              &larr; Back to {archCurrentView === 'gallery' ? 'Graph' : 'Gallery'}
+   984→            </button>
+   985→            <div>
+   986→              <h2 style={{ fontSize: '1.5rem', color: 'var(--text-primary)' }}>
+   987→                {archCurrentView === 'gallery' ? 'AI Architectures' : currentArch?.name ?? ''}
+   988→              </h2>
+   989→              <p style={{ color: 'var(--text-tertiary)' }}>
+   990→                {archCurrentView === 'gallery'
+   991→                  ? 'Explore the blueprints of modern AI.'
+   992→                  : currentArch?.shortDesc ?? ''}
+   993→              </p>
+   994→            </div>
+   995→          </div>
+   996→
+   997→          {/* Gallery */}
+   998→          <div
+   999→            id="archGallery"
+  1000→            className="arch-gallery"
+  1001→            style={{ display: archCurrentView === 'gallery' ? 'grid' : 'none' }}
+  1002→          >
+  1003→            {architectures.map((arch) => (
+  1004→              <div key={arch.id} className="arch-card" data-id={arch.id} onClick={() => showArchDetail(arch.id)}>
+  1005→                <div className="arch-category">{arch.category}</div>
+  1006→                <div className="arch-title">{arch.name}</div>
+  1007→                <div className="arch-desc">{arch.shortDesc}</div>
+  1008→              </div>
+  1009→            ))}
+  1010→          </div>
+  1011→
+  1012→          {/* Visualizer */}
+  1013→          <div
+  1014→            id="archVisualizer"
+  1015→            style={{ display: archCurrentView === 'architecture' && currentArch ? 'block' : 'none' }}
+  1016→          >
+  1017→            {currentArch && (
+  1018→              <div className="flow-container" dangerouslySetInnerHTML={{ __html: renderArchSteps(currentArch.steps as Parameters<typeof renderArchSteps>[0]) }} />
+  1019→            )}
+  1020→          </div>
+  1021→          </div>
+  1022→        )}
+  1023→
+  1024→        {/* Knowledge Paths View */}
+  1025→        {activeView === 'knowledge-paths' && (
+  1026→        <div
+  1027→          id="pathView"
+  1028→          key="view-knowledge-paths"
+  1029→          className="arch-visualizer view-container"
+  1030→        >
+  1031→          <div className="viz-header">
+  1032→            <button
+  1033→              className="viz-back-btn"
+  1034→              onClick={() => {
+  1035→                if (pathMode !== 'gallery') {
+  1036→                  setPathMode('gallery')
+  1037→                  setActivePath(null)
+  1038→                  setPathSubPaths([])
+  1039→                } else {
+  1040→                  setActiveView('graph')
+  1041→                }
+  1042→              }}
+  1043→            >
+  1044→              &larr; {pathMode !== 'gallery' ? 'Back' : 'Back to Graph'}
+  1045→            </button>
+  1046→            <div>
+  1047→              <h2 style={{ fontSize: '1.5rem', color: 'var(--text-primary)' }}>
+  1048→                {pathMode === 'gallery'
+  1049→                  ? 'Knowledge Paths'
+  1050→                  : pathMode === 'subpaths'
+  1051→                    ? 'Specializations'
+  1052→                    : activePath?.title ?? ''}
+  1053→              </h2>
+  1054→              <p style={{ color: 'var(--text-tertiary)' }}>
+  1055→                {pathMode === 'gallery'
+  1056→                  ? 'Structured learning paths to master AI.'
+  1057→                  : activePath?.description ?? ''}
+  1058→              </p>
+  1059→            </div>
+  1060→          </div>
+  1061→
+  1062→          {/* Path Gallery */}
+  1063→          <div
+  1064→            id="pathGallery"
+  1065→            className="path-gallery"
+  1066→            style={{
+  1067→              display: pathMode === 'gallery' || pathMode === 'subpaths' ? 'grid' : 'none',
+  1068→            }}
+  1069→          >
+  1070→            {(pathMode === 'gallery' ? knowledgePaths : pathSubPaths).map((path) => (
+  1071→              <div key={path.id} className="path-card">
+  1072→                <div className="path-title">{path.title}</div>
+  1073→                <div className="path-desc">{path.description}</div>
+  1074→                <div className="path-meta">
+  1075→                  <span className="badge">{path.difficulty}</span>
+  1076→                </div>
+  1077→                <button className="path-start" onClick={() => startPath(path)}>
+  1078→                  {pathMode === 'gallery' ? (path.paths ? 'Explore' : 'Start Path') : 'Explore'}
+  1079→                </button>
+  1080→              </div>
+  1081→            ))}
+  1082→          </div>
+  1083→
+  1084→          {/* Path Steps */}
+  1085→          <div id="pathViewer" style={{ display: pathMode === 'steps' ? 'block' : 'none' }}>
+  1086→            {activePath?.steps && (
+  1087→              <div className="path-steps-container">
+  1088→                {activePath.steps.map((step, i) => (
+  1089→                  <div key={i} className="path-step">
+  1090→                    <div className="step-index">{i + 1}</div>
+  1091→                    <div className="step-name">{step}</div>
+  1092→                    <button className="step-open" onClick={() => focusTerm(step)}>
+  1093→                      Open
+  1094→                    </button>
+  1095→                  </div>
+  1096→                ))}
+  1097→              </div>
+  1098→            )}
+  1099→          </div>
+  1100→        </div>
+  1101→        )}
+  1102→
+  1103→        {/* Node Detail Panel */}
+  1104→        <div className={`panel ${detailPanelOpen ? 'open' : ''}`} id="detailPanel">
+  1105→          <div className="panel-header">
+  1106→            <button className="panel-close" id="closePanel" aria-label="Close" onClick={onClosePanel}>
+  1107→              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  1108→                <path d="M18 6 6 18M6 6l12 12" />
+  1109→              </svg>
+  1110→            </button>
+  1111→            <div
+  1112→              className="panel-badge"
+  1113→              id="panelBadge"
+  1114→              style={{
+  1115→                color: selectedTermCategory?.color ?? '#6b7280',
+  1116→                background: selectedTermCategory ? `${selectedTermCategory.color}15` : 'var(--bg-tertiary)',
+  1117→              }}
+  1118→            >
+  1119→              {selectedTermCategory?.name ?? 'General'}
+  1120→            </div>
+  1121→            <h2 className="panel-title" id="panelTitle">
+  1122→              {selectedTerm?.fullName || selectedTerm?.name || 'Term Name'}
+  1123→            </h2>
+  1124→            <p className="panel-subtitle" id="panelSubtitle">
+  1125→              {selectedTerm?.shortDesc ?? 'Description'}
+  1126→            </p>
+  1127→          </div>
+  1128→          <div className="panel-body">
+  1129→            <section className="panel-section">
+  1130→              <h4 className="section-title">Definition</h4>
+  1131→              <p
+  1132→                className="section-text"
+  1133→                id="panelDefinition"
+  1134→                dangerouslySetInnerHTML={{
+  1135→                  __html: parseMarkdown(selectedTerm?.definition ?? ''),
+  1136→                }}
+  1137→              />
+  1138→            </section>
+  1139→
+  1140→            <section className="panel-section">
+  1141→              <h4 className="section-title">Related Terms</h4>
+  1142→              <div className="related-grid" id="relatedTerms">
+  1143→                {relatedTerms.length > 0 ? (
+  1144→                  relatedTerms.map(({ term: rt, cat: rc }) => (
+  1145→                    <div
+  1146→                      key={rt.id}
+  1147→                      className="related-item"
+  1148→                      role="button"
+  1149→                      tabIndex={0}
+  1150→                      onClick={() => onRelatedClick(rt.id)}
+  1151→                      onKeyDown={(e) => { if (e.key === 'Enter') onRelatedClick(rt.id) }}
+  1152→                    >
+  1153→                      <div className="related-name">{rt.name}</div>
+  1154→                      <div className="related-type">{rc?.name ?? 'General'}</div>
+  1155→                    </div>
+  1156→                  ))
+  1157→                ) : (
+  1158→                  <p style={{ color: 'var(--text-muted)', fontSize: 'var(--font-size-sm, 0.85rem)' }}>No related terms</p>
+  1159→                )}
+  1160→              </div>
+  1161→            </section>
+  1162→
+  1163→            <section className="panel-section">
+  1164→              <h4 className="section-title">Code Example</h4>
+  1165→              <div className="code-block">
+  1166→                <button
+  1167→                  className="copy-btn-dynamic"
+  1168→                  onClick={onCopyCode}
+  1169→                  style={{
+  1170→                    position: 'absolute', top: 8, right: 8, padding: '4px 10px',
+  1171→                    fontSize: 11, fontFamily: '"Plus Jakarta Sans", sans-serif',
+  1172→                    background: 'rgba(255,255,255,0.1)', color: copyState === 'copied' ? '#4ade80' : copyState === 'failed' ? '#f87171' : '#cbd5e1',
+  1173→                    border: '1px solid rgba(255,255,255,0.2)', borderRadius: 4, cursor: 'pointer',
+  1174→                    transition: 'background 0.2s, color 0.2s', zIndex: 1,
+  1175→                  }}
+  1176→                >
+  1177→                  {copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Failed' : 'Copy'}
+  1178→                </button>
+  1179→                <pre>
+  1180→                  <code id="panelCode">{selectedTerm?.codeExample || '// No code example available'}</code>
+  1181→                </pre>
+  1182→              </div>
+  1183→            </section>
+  1184→
+  1185→            <section className="panel-section">
+  1186→              <h4 className="section-title">Tags</h4>
+  1187→              <div className="tag-list" id="panelTags">
+  1188→                {selectedTerm?.tags?.map((tag) => <span key={tag} className="tag">{tag}</span>) ?? []}
+  1189→              </div>
+  1190→            </section>
+  1191→          </div>
+  1192→        </div>
+  1193→
+  1194→        {/* Add Term Modal */}
+  1195→        <div
+  1196→          className={`modal-overlay ${addModalOpen ? 'open' : ''}`}
+  1197→          id="addModal"
+  1198→          onClick={(e) => {
+  1199→            if (e.target === e.currentTarget) onCloseModal()
+  1200→          }}
+  1201→        >
+  1202→          <div className="modal">
+  1203→            <div className="modal-header">
+  1204→              <h3 className="modal-title">Add New Term</h3>
+  1205→              <button className="modal-close" aria-label="Close" onClick={onCloseModal}>
+  1206→                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  1207→                  <path d="M18 6 6 18M6 6l12 12" />
+  1208→                </svg>
+  1209→              </button>
+  1210→            </div>
+  1211→            <form className="modal-form" id="addTermForm" onSubmit={handleAddTerm}>
+  1212→              <div className="form-group">
+  1213→                <label className="form-label">Term Name *</label>
+  1214→                <input type="text" name="name" className="form-input" required />
+  1215→              </div>
+  1216→              <div className="form-group">
+  1217→                <label className="form-label">Category *</label>
+  1218→                <select name="category" className="form-select" id="categorySelect" required defaultValue="">
+  1219→                  <option value="" disabled>
+  1220→                    Select a category...
+  1221→                  </option>
+  1222→                  {categoriesForModal.map((cat) => (
+  1223→                    <option key={cat.id} value={cat.id}>
+  1224→                      {cat.name}
+  1225→                    </option>
+  1226→                  ))}
+  1227→                </select>
+  1228→              </div>
+  1229→              <div className="form-group">
+  1230→                <label className="form-label">Short Description *</label>
+  1231→                <input type="text" name="shortDesc" className="form-input" required />
+  1232→              </div>
+  1233→              <div className="form-group">
+  1234→                <label className="form-label">Full Definition *</label>
+  1235→                <textarea name="definition" className="form-textarea" rows={4} required />
+  1236→              </div>
+  1237→              <div className="form-row">
+  1238→                <div className="form-group">
+  1239→                  <label className="form-label">Related Terms</label>
+  1240→                  <input type="text" name="related" className="form-input" placeholder="term1, term2" />
+  1241→                </div>
+  1242→                <div className="form-group">
+  1243→                  <label className="form-label">Tags</label>
+  1244→                  <input type="text" name="tags" className="form-input" placeholder="tag1, tag2" />
+  1245→                </div>
+  1246→              </div>
+  1247→              <div className="form-actions">
+  1248→                <button type="button" className="btn btn-ghost" onClick={onCloseModal}>
+  1249→                  Cancel
+  1250→                </button>
+  1251→                <button type="submit" className="btn btn-primary">
+  1252→                  Add Term
+  1253→                </button>
+  1254→              </div>
+  1255→            </form>
+  1256→          </div>
+  1257→        </div>
+  1258→
+  1259→        {/* Tooltip */}
+  1260→        <div className="tooltip" id="tooltip" ref={tooltipRef} />
+  1261→      </div>
+  1262→
+  1263→      {/* Toast */}
+  1264→      {toast && <Toast toast={toast} />}
+  1265→
+  1266→      {/* Visitor Counter */}
+  1267→      <div className="visitor-counter">
+  1268→        {'\uD83E\uDDE0'} TitanML Minds Visited: <span id="visitorCount">{'\u2014'}</span>
+  1269→      </div>
+  1270→
+  1271→      {/* Desktop Note for mobile */}
+  1272→      <div id="desktopNote">
+  1273→        {'\u26A1'} For the best experience, view TitanML on desktop
+  1274→      </div>
+  1275→    </>
+  1276→  )
+  1277→}

@@ -1,0 +1,1047 @@
+     1→     1→/**
+     2→     2→ * AI Knowledge Graph Visualization Engine
+     3→     3→ * Converted from graph.js - Canvas-based force-directed graph with physics simulation.
+     4→     4→ */
+     5→     5→
+     6→     6→export interface GraphNode {
+     7→     7→  id: string
+     8→     8→  x: number
+     9→     9→  y: number
+    10→    10→  vx: number
+    11→    11→  vy: number
+    12→    12→  radius: number
+    13→    13→  term: {
+    14→    14→    id: string
+    15→    15→    name: string
+    16→    16→    fullName: string
+    17→    17→    category: string
+    18→    18→    type: string
+    19→    19→    shortDesc: string
+    20→    20→    tags: string[]
+    21→    21→  }
+    22→    22→  color: string
+    23→    23→  highlighted: boolean
+    24→    24→  visible: boolean
+    25→    25→  currentRadius: number
+    26→    26→  targetRadius: number
+    27→    27→}
+    28→    28→
+    29→    29→export interface GraphEdge {
+    30→    30→  source: string
+    31→    31→  target: string
+    32→    32→  strength: number
+    33→    33→}
+    34→    34→
+    35→    35→export interface GraphCategory {
+    36→    36→  id: string
+    37→    37→  name: string
+    38→    38→  color: string
+    39→    39→}
+    40→    40→
+    41→    41→export type NodeSelectCallback = (term: GraphNode['term']) => void
+    42→    42→export type HoverChangeCallback = (node: GraphNode | null, e: MouseEvent | TouchEvent | null) => void
+    43→    43→
+    44→    44→export class KnowledgeGraph {
+    45→    45→  canvas: HTMLCanvasElement | null = null
+    46→    46→  ctx: CanvasRenderingContext2D | null = null
+    47→    47→
+    48→    48→  theme = {
+    49→    49→    bg: '#f8fafc',
+    50→    50→    bgGradientCenter: '#ffffff',
+    51→    51→    gridDot: '#dde3ed',
+    52→    52→    text: '#334155',
+    53→    53→    nodeBorderDefault: '#cbd5e1',
+    54→    54→    nodeLabelDefault: '#64748b',
+    55→    55→    nodeBodyStart: '#ffffff',
+    56→    56→    nodeBodyEnd: '#f1f5f9',
+    57→    57→    dimmedBodyStart: 'rgba(255,255,255,0.4)',
+    58→    58→    dimmedBodyEnd: 'rgba(241,245,249,0.3)',
+    59→    59→  }
+    60→    60→
+    61→    61→  private _lightTheme = { ...this.theme }
+    62→    62→
+    63→    63→  private _darkTheme = {
+    64→    64→    bg: '#0a1120',
+    65→    65→    bgGradientCenter: '#111827',
+    66→    66→    gridDot: '#1e2d40',
+    67→    67→    text: '#e8f0fe',
+    68→    68→    nodeBorderDefault: '#2d3f58',
+    69→    69→    nodeLabelDefault: '#7c96b4',
+    70→    70→    nodeBodyStart: '#1e293b',
+    71→    71→    nodeBodyEnd: '#0f172a',
+    72→    72→    dimmedBodyStart: 'rgba(30,41,59,0.4)',
+    73→    73→    dimmedBodyEnd: 'rgba(15,23,42,0.3)',
+    74→    74→  }
+    75→    75→
+    76→    76→  options = {
+    77→    77→    nodeRadius: { core: 26, technique: 18, infrastructure: 14, application: 12 } as Record<string, number>,
+    78→    78→    fontSize: 10,
+    79→    79→    padding: 80,
+    80→    80→    zoomMin: 0.15,
+    81→    81→    zoomMax: 5,
+    82→    82→  }
+    83→    83→
+    84→    84→  nodes: GraphNode[] = []
+    85→    85→  edges: GraphEdge[] = []
+    86→    86→  nodeMap = new Map<string, GraphNode>()
+    87→    87→  zoom = 1
+    88→    88→  panX = 0
+    89→    89→  panY = 0
+    90→    90→  hoveredNode: GraphNode | null = null
+    91→    91→  private _selectedNode: GraphNode | null = null
+    92→    92→  get selectedNode(): GraphNode | null { return this._selectedNode }
+    93→    93→  set selectedNode(value: GraphNode | null) {
+    94→    94→    if (this._selectedNode === value) return
+    95→    95→    this._selectedNode = value
+    96→    96→    this._sortedDirty = true
+    97→    97→    this._isDirty = true
+    98→    98→    this._wake()
+    99→    99→  }
+   100→   100→  isDragging = false
+   101→   101→  lastMouse = { x: 0, y: 0 }
+   102→   102→  animationId: number | null = null
+   103→   103→
+   104→   104→  width = 0
+   105→   105→  height = 0
+   106→   106→  centerX = 0
+   107→   107→  centerY = 0
+   108→   108→  dpr = 1
+   109→   109→
+   110→   110→  time = 0
+   111→   111→  private _lastTs: number | null = null
+   112→   112→
+   113→   113→  physics = {
+   114→   114→    enabled: true,
+   115→   115→    repulsion: 800,
+   116→   116→    attraction: 0.005,
+   117→   117→    centerGravity: 0.01,
+   118→   118→    damping: 0.85,
+   119→   119→    minVelocity: 0.05,
+   120→   120→    maxVelocity: 10,
+   121→   121→  }
+   122→   122→
+   123→   123→  private _zoomTarget = 1
+   124→   124→  private _panTargetX = 0
+   125→   125→  private _panTargetY = 0
+   126→   126→  private _pinchDist: number | null = null
+   127→   127→  private _pinchZoom = 1
+   128→   128→  private _touchStartPos: { x: number; y: number } | null = null
+   129→   129→  private _touchStartTime = 0
+   130→   130→  private _TAP_MAX_DIST = 10
+   131→   131→  private _TAP_MAX_MS = 250
+   132→   132→  private _gridCanvas: HTMLCanvasElement | null = null
+   133→   133→  private _gridDirty = true
+   134→   134→  private _boundListeners: { target: EventTarget; type: string; fn: EventListener; opts?: AddEventListenerOptions }[] = []
+   135→   135→  private _isDark = false
+   136→   136→  private _sortedNodes: GraphNode[] = []
+   137→   137→  private _sortedDirty = true
+   138→   138→  private _labelCache = new Map<string, string>()
+   139→   139→  private _isDirty = true
+   140→   140→  private _idleFrames = 0
+   141→   141→  private _MAX_IDLE = 60 // Stop rAF after 60 idle frames (~1s at 60fps)
+   142→   142→  private _isRunning = false
+   143→   143→  private _mouseDownPos: { x: number; y: number } | null = null
+   144→   144→  private _resizeTimer: ReturnType<typeof setTimeout> | null = null
+   145→   145→
+   146→   146→  /** Wake the animation loop if it was stopped */
+   147→   147→  private _wake() {
+   148→   148→    if (!this._isRunning) {
+   149→   149→      this._isDirty = true
+   150→   150→      this._idleFrames = 0
+   151→   151→      this._startAnimation()
+   152→   152→    }
+   153→   153→  }
+   154→   154→
+   155→   155→  onNodeSelect: NodeSelectCallback | null = null
+   156→   156→  onHoverChange: HoverChangeCallback | null = null
+   157→   157→
+   158→   158→  constructor() {}
+   159→   159→
+   160→   160→  init(canvas: HTMLCanvasElement) {
+   161→   161→    this.canvas = canvas
+   162→   162→    this.ctx = canvas.getContext('2d')
+   163→   163→    if (!this.ctx) {
+   164→   164→      console.error('[KnowledgeGraph] Could not get 2d context')
+   165→   165→      return
+   166→   166→    }
+   167→   167→    this._handleResize()
+   168→   168→    this._bindEvents()
+   169→   169→    this._startAnimation()
+   170→   170→  }
+   171→   171→
+   172→   172→  findNode(id: string): GraphNode | null {
+   173→   173→    return this.nodeMap.get(id) ?? null
+   174→   174→  }
+   175→   175→
+   176→   176→  resize() {
+   177→   177→    this._handleResize()
+   178→   178→  }
+   179→   179→
+   180→   180→  zoomIn() {
+   181→   181→    const newZoom = Math.min(this.options.zoomMax, this.zoom * 1.3)
+   182→   182→    this._animateZoom(newZoom, this.width / 2, this.height / 2)
+   183→   183→  }
+   184→   184→
+   185→   185→  zoomOut() {
+   186→   186→    const newZoom = Math.max(this.options.zoomMin, this.zoom / 1.3)
+   187→   187→    this._animateZoom(newZoom, this.width / 2, this.height / 2)
+   188→   188→  }
+   189→   189→
+   190→   190→  resetView() {
+   191→   191→    this._zoomTarget = 1
+   192→   192→    this._panTargetX = 0
+   193→   193→    this._panTargetY = 0
+   194→   194→  }
+   195→   195→
+   196→   196→  setDarkMode(isDark: boolean) {
+   197→   197→    if (this._isDark === isDark) return
+   198→   198→    this._isDark = isDark
+   199→   199→    const t = isDark ? this._darkTheme : this._lightTheme
+   200→   200→    Object.assign(this.theme, t)
+   201→   201→    this._gridDirty = true
+   202→   202→    this._isDirty = true
+   203→   203→    this._wake()
+   204→   204→  }
+   205→   205→
+   206→   206→  highlightNodes(query: string | null) {
+   207→   207→    const q = query ? String(query).toLowerCase().trim() : ''
+   208→   208→    if (!q) {
+   209→   209→      for (let i = 0; i < this.nodes.length; i++) this.nodes[i].highlighted = false
+   210→   210→    } else {
+   211→   211→      for (let i = 0; i < this.nodes.length; i++) {
+   212→   212→        const node = this.nodes[i]
+   213→   213→        node.highlighted =
+   214→   214→          node.term.name.toLowerCase().includes(q) ||
+   215→   215→          (node.term.shortDesc ?? '').toLowerCase().includes(q) ||
+   216→   216→          (node.term.tags ?? []).some((t) => t.toLowerCase().includes(q))
+   217→   217→      }
+   218→   218→    }
+   219→   219→    this._isDirty = true
+   220→   220→    this._wake()
+   221→   221→  }
+   222→   222→
+   223→   223→  filterByCategory(categoryId: string | null) {
+   224→   224→    this.nodes.forEach((node) => {
+   225→   225→      node.visible = !categoryId || node.term.category === categoryId
+   226→   226→    })
+   227→   227→    this._isDirty = true
+   228→   228→    this._wake()
+   229→   229→  }
+   230→   230→
+   231→   231→  filterByType(type: string | null) {
+   232→   232→    this.nodes.forEach((node) => {
+   233→   233→      node.visible = !type || node.term.type === type
+   234→   234→    })
+   235→   235→    this._isDirty = true
+   236→   236→    this._wake()
+   237→   237→  }
+   238→   238→
+   239→   239→  stopAnimation() {
+   240→   240→    if (this.animationId) {
+   241→   241→      cancelAnimationFrame(this.animationId)
+   242→   242→      this.animationId = null
+   243→   243→    }
+   244→   244→  }
+   245→   245→
+   246→   246→  destroy() {
+   247→   247→    this.stopAnimation()
+   248→   248→    this._isRunning = false
+   249→   249→    for (const { target, type, fn, opts } of this._boundListeners) {
+   250→   250→      target.removeEventListener(type, fn, opts)
+   251→   251→    }
+   252→   252→    this._boundListeners = []
+   253→   253→    this._gridCanvas = null
+   254→   254→    this.nodes = []
+   255→   255→    this.edges = []
+   256→   256→    this.nodeMap.clear()
+   257→   257→    this._sortedNodes = []
+   258→   258→    this._labelCache.clear()
+   259→   259→    this.canvas = null
+   260→   260→    this.ctx = null
+   261→   261→  }
+   262→   262→
+   263→   263→  loadData(categories: GraphCategory[], terms: GraphNode['term'][]) {
+   264→   264→    this.nodes = []
+   265→   265→    this.edges = []
+   266→   266→    this.nodeMap.clear()
+   267→   267→    this._labelCache.clear()
+   268→   268→    this._sortedNodes = []
+   269→   269→    this._sortedDirty = true
+   270→   270→
+   271→   271→    if (!categories.length || !terms.length) return
+   272→   272→
+   273→   273→    terms.forEach((term) => {
+   274→   274→      const category = categories.find((c) => c.id === term.category)
+   275→   275→      const categoryIndex = category ? categories.indexOf(category) : 0
+   276→   276→      const total = categories.length || 1
+   277→   277→
+   278→   278→      const baseAngle = (categoryIndex / total) * Math.PI * 2 - Math.PI / 2
+   279→   279→      const catTerms = terms.filter((t) => t.category === term.category)
+   280→   280→      const termIndex = catTerms.indexOf(term)
+   281→   281→
+   282→   282→      const radius = this.options.nodeRadius[term.type] ?? 16
+   283→   283→      const distance = term.type === 'core' ? 160 : term.type === 'technique' ? 220 : 280
+   284→   284→
+   285→   285→      const spreadAngle = Math.PI / 4
+   286→   286→      const angleOffset =
+   287→   287→        catTerms.length > 1
+   288→   288→          ? ((termIndex - (catTerms.length - 1) / 2) * spreadAngle) / catTerms.length
+   289→   289→          : 0
+   290→   290→      const angle = baseAngle + angleOffset
+   291→   291→
+   292→   292→      const jx = (Math.random() - 0.5) * 40
+   293→   293→      const jy = (Math.random() - 0.5) * 40
+   294→   294→
+   295→   295→      const node: GraphNode = {
+   296→   296→        id: term.id,
+   297→   297→        x: this.centerX + Math.cos(angle) * distance + jx,
+   298→   298→        y: this.centerY + Math.sin(angle) * distance + jy,
+   299→   299→        vx: 0,
+   300→   300→        vy: 0,
+   301→   301→        radius,
+   302→   302→        term,
+   303→   303→        color: category?.color ?? '#94a3b8',
+   304→   304→        highlighted: false,
+   305→   305→        visible: true,
+   306→   306→        currentRadius: radius,
+   307→   307→        targetRadius: radius,
+   308→   308→      }
+   309→   309→
+   310→   310→      this.nodes.push(node)
+   311→   311→      this.nodeMap.set(term.id, node)
+   312→   312→    })
+   313→   313→
+   314→   314→    const edgeSet = new Set<string>()
+   315→   315→    terms.forEach((term) => {
+   316→   316→      const relatedIds = (term as unknown as { related?: string[] }).related ?? []
+   317→   317→      relatedIds.forEach((relId: string) => {
+   318→   318→        const key = [term.id, relId].sort().join('|')
+   319→   319→        if (!edgeSet.has(key)) {
+   320→   320→          edgeSet.add(key)
+   321→   321→          this.edges.push({ source: term.id, target: relId, strength: 1 })
+   322→   322→        }
+   323→   323→      })
+   324→   324→    })
+   325→   325→
+   326→   326→    this._warmUpPhysics(120)
+   327→   327→  }
+   328→   328→
+   329→   329→  private _warmUpPhysics(iterations: number) {
+   330→   330→    const CHUNK = 60
+   331→   331→    let done = 0
+   332→   332→    const run = () => {
+   333→   333→      const end = Math.min(done + CHUNK, iterations)
+   334→   334→      for (; done < end; done++) this._simulatePhysics(0.15)
+   335→   335→      if (done < iterations) setTimeout(run, 0)
+   336→   336→    }
+   337→   337→    run()
+   338→   338→  }
+   339→   339→
+   340→   340→  private _simulatePhysics(dt = 1): boolean {
+   341→   341→    if (!this.physics.enabled) return false
+   342→   342→
+   343→   343→    const nodes = this.nodes
+   344→   344→    const CELL = 200
+   345→   345→    const eps = 0.001
+   346→   346→
+   347→   347→    const grid = new Map<string, GraphNode[]>()
+   348→   348→    const cellOf = (x: number, y: number) => `${Math.floor(x / CELL)},${Math.floor(y / CELL)}`
+   349→   349→
+   350→   350→    nodes.forEach((node) => {
+   351→   351→      if (!node.visible) return
+   352→   352→      const key = cellOf(node.x, node.y)
+   353→   353→      if (!grid.has(key)) grid.set(key, [])
+   354→   354→      grid.get(key)!.push(node)
+   355→   355→    })
+   356→   356→
+   357→   357→    const neighbourCells = (cx: number, cy: number) => {
+   358→   358→      const result: GraphNode[] = []
+   359→   359→      for (let dx = -1; dx <= 1; dx++) {
+   360→   360→        for (let dy = -1; dy <= 1; dy++) {
+   361→   361→          const key = `${cx + dx},${cy + dy}`
+   362→   362→          if (grid.has(key)) result.push(...grid.get(key)!)
+   363→   363→        }
+   364→   364→      }
+   365→   365→      return result
+   366→   366→    }
+   367→   367→
+   368→   368→    nodes.forEach((node) => {
+   369→   369→      if (!node.visible) return
+   370→   370→
+   371→   371→      node.vx += (this.centerX - node.x) * this.physics.centerGravity * dt
+   372→   372→      node.vy += (this.centerY - node.y) * this.physics.centerGravity * dt
+   373→   373→
+   374→   374→      const cx = Math.floor(node.x / CELL)
+   375→   375→      const cy = Math.floor(node.y / CELL)
+   376→   376→      const neighbours = neighbourCells(cx, cy)
+   377→   377→
+   378→   378→      neighbours.forEach((other) => {
+   379→   379→        if (node.id === other.id) return
+   380→   380→        const dx = node.x - other.x
+   381→   381→        const dy = node.y - other.y
+   382→   382→        const distSq = dx * dx + dy * dy
+   383→   383→        const dist = Math.max(Math.sqrt(distSq), 1)
+   384→   384→        if (dist < CELL) {
+   385→   385→          const force = this.physics.repulsion / (distSq + eps)
+   386→   386→          node.vx += (dx / dist) * force * dt
+   387→   387→          node.vy += (dy / dist) * force * dt
+   388→   388→        }
+   389→   389→      })
+   390→   390→    })
+   391→   391→
+   392→   392→    this.edges.forEach((edge) => {
+   393→   393→      const src = this.nodeMap.get(edge.source)
+   394→   394→      const tgt = this.nodeMap.get(edge.target)
+   395→   395→      if (!src || !tgt || !src.visible || !tgt.visible) return
+   396→   396→
+   397→   397→      const dx = tgt.x - src.x
+   398→   398→      const dy = tgt.y - src.y
+   399→   399→      const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1)
+   400→   400→      const targetDist = 180
+   401→   401→      const force = (dist - targetDist) * this.physics.attraction
+   402→   402→
+   403→   403→      src.vx += (dx / dist) * force * dt
+   404→   404→      src.vy += (dy / dist) * force * dt
+   405→   405→      tgt.vx -= (dx / dist) * force * dt
+   406→   406→      tgt.vy -= (dy / dist) * force * dt
+   407→   407→    })
+   408→   408→
+   409→   409→    const maxV = this.physics.maxVelocity
+   410→   410→    const padding = this.options.padding
+   411→   411→    const minV = this.physics.minVelocity
+   412→   412→    let moved = false
+   413→   413→
+   414→   414→    nodes.forEach((node) => {
+   415→   415→      if (!node.visible) return
+   416→   416→
+   417→   417→      node.vx *= this.physics.damping
+   418→   418→      node.vy *= this.physics.damping
+   419→   419→
+   420→   420→      const v = Math.sqrt(node.vx * node.vx + node.vy * node.vy)
+   421→   421→      if (v > maxV) {
+   422→   422→        node.vx = (node.vx / v) * maxV
+   423→   423→        node.vy = (node.vy / v) * maxV
+   424→   424→      }
+   425→   425→
+   426→   426→      if (Math.abs(node.vx) > minV) { node.x += node.vx; moved = true }
+   427→   427→      if (Math.abs(node.vy) > minV) { node.y += node.vy; moved = true }
+   428→   428→
+   429→   429→      node.x = Math.max(padding, Math.min(this.width - padding, node.x))
+   430→   430→      node.y = Math.max(padding, Math.min(this.height - padding, node.y))
+   431→   431→
+   432→   432→      const radiusDelta = (node.targetRadius - node.currentRadius) * 0.12
+   433→   433→      if (Math.abs(radiusDelta) > 0.01) {
+   434→   434→        node.currentRadius += radiusDelta
+   435→   435→        moved = true
+   436→   436→      }
+   437→   437→    })
+   438→   438→
+   439→   439→    return moved
+   440→   440→  }
+   441→   441→
+   442→   442→  screenToWorld(sx: number, sy: number) {
+   443→   443→    return { x: (sx - this.panX) / this.zoom, y: (sy - this.panY) / this.zoom }
+   444→   444→  }
+   445→   445→
+   446→   446→  private findNodeAt(wx: number, wy: number, extra = 0): GraphNode | null {
+   447→   447→    for (let i = this.nodes.length - 1; i >= 0; i--) {
+   448→   448→      const node = this.nodes[i]
+   449→   449→      if (!node.visible) continue
+   450→   450→      const dx = wx - node.x
+   451→   451→      const dy = wy - node.y
+   452→   452→      if (Math.sqrt(dx * dx + dy * dy) <= node.radius + 5 + extra) return node
+   453→   453→    }
+   454→   454→    return null
+   455→   455→  }
+   456→   456→
+   457→   457→  private _clientPos(e: MouseEvent) {
+   458→   458→    const rect = this.canvas!.getBoundingClientRect()
+   459→   459→    return { x: e.clientX - rect.left, y: e.clientY - rect.top }
+   460→   460→  }
+   461→   461→
+   462→   462→  private _onMouseMove = (e: MouseEvent) => {
+   463→   463→    this._wake()
+   464→   464→    const { x, y } = this._clientPos(e)
+   465→   465→    if (this.isDragging) {
+   466→   466→      const dx = e.clientX - this.lastMouse.x
+   467→   467→      const dy = e.clientY - this.lastMouse.y
+   468→   468→      this.panX += dx
+   469→   469→      this.panY += dy
+   470→   470→      this._panTargetX = this.panX
+   471→   471→      this._panTargetY = this.panY
+   472→   472→      this.lastMouse = { x: e.clientX, y: e.clientY }
+   473→   473→    } else {
+   474→   474→      const world = this.screenToWorld(x, y)
+   475→   475→      const hovered = this.findNodeAt(world.x, world.y)
+   476→   476→      if (hovered !== this.hoveredNode) {
+   477→   477→        this.hoveredNode = hovered
+   478→   478→        this.canvas!.style.cursor = hovered ? 'pointer' : 'grab'
+   479→   479→        this._isDirty = true
+   480→   480→        if (this.onHoverChange) this.onHoverChange(hovered, e)
+   481→   481→      }
+   482→   482→    }
+   483→   483→  }
+   484→   484→
+   485→   485→  private _onMouseDown = (e: MouseEvent) => {
+   486→   486→    this._wake()
+   487→   487→    this.isDragging = true
+   488→   488→    this._mouseDownPos = { x: e.clientX, y: e.clientY }
+   489→   489→    this.lastMouse = { x: e.clientX, y: e.clientY }
+   490→   490→    this.canvas!.style.cursor = 'grabbing'
+   491→   491→  }
+   492→   492→
+   493→   493→  private _onMouseUp = () => {
+   494→   494→    this.isDragging = false
+   495→   495→    this.canvas!.style.cursor = this.hoveredNode ? 'pointer' : 'grab'
+   496→   496→  }
+   497→   497→
+   498→   498→  private _onMouseLeave = () => {
+   499→   499→    this.isDragging = false
+   500→   500→    this.hoveredNode = null
+   501→   501→    if (this.onHoverChange) this.onHoverChange(null, null)
+   502→   502→  }
+   503→   503→
+   504→   504→  private _onWheel = (e: WheelEvent) => {
+   505→   505→    this._wake()
+   506→   506→    e.preventDefault()
+   507→   507→    const { x, y } = this._clientPos(e)
+   508→   508→    const delta = e.deltaY > 0 ? 0.9 : 1.1
+   509→   509→    const newZoom = Math.max(this.options.zoomMin, Math.min(this.options.zoomMax, this.zoom * delta))
+   510→   510→    this._animateZoom(newZoom, x, y)
+   511→   511→  }
+   512→   512→
+   513→   513→  private _onClick = (e: MouseEvent) => {
+   514→   514→    if (e.clientX === undefined && e.clientY === undefined) return
+   515→   515→    // If mouse moved more than 5px from mousedown position, this was a drag/pan — skip click
+   516→   516→    if (this._mouseDownPos) {
+   517→   517→      const dx = e.clientX - this._mouseDownPos.x
+   518→   518→      const dy = e.clientY - this._mouseDownPos.y
+   519→   519→      if (Math.sqrt(dx * dx + dy * dy) > 5) return
+   520→   520→    }
+   521→   521→    const { x, y } = this._clientPos(e)
+   522→   522→    const world = this.screenToWorld(x, y)
+   523→   523→    const node = this.findNodeAt(world.x, world.y)
+   524→   524→
+   525→   525→    if (node) {
+   526→   526→      this.selectedNode = node
+   527→   527→      node.targetRadius = node.radius * 1.2
+   528→   528→      setTimeout(() => {
+   529→   529→        if (this.selectedNode === node) node.targetRadius = node.radius
+   530→   530→      }, 220)
+   531→   531→      if (this.onNodeSelect) this.onNodeSelect(node.term)
+   532→   532→    } else {
+   533→   533→      this.selectedNode = null
+   534→   534→    }
+   535→   535→  }
+   536→   536→
+   537→   537→  private _onTouchStart = (e: TouchEvent) => {
+   538→   538→    this._wake()
+   539→   539→    if (e.touches.length === 1) {
+   540→   540→      e.preventDefault()
+   541→   541→      const t = e.touches[0]
+   542→   542→      const rect = this.canvas!.getBoundingClientRect()
+   543→   543→      this._touchStartPos = { x: t.clientX - rect.left, y: t.clientY - rect.top }
+   544→   544→      this._touchStartTime = performance.now()
+   545→   545→      this.isDragging = true
+   546→   546→      this.lastMouse = { x: t.clientX, y: t.clientY }
+   547→   547→    } else if (e.touches.length === 2) {
+   548→   548→      e.preventDefault()
+   549→   549→      this.isDragging = false
+   550→   550→      const dx = e.touches[0].clientX - e.touches[1].clientX
+   551→   551→      const dy = e.touches[0].clientY - e.touches[1].clientY
+   552→   552→      this._pinchDist = Math.sqrt(dx * dx + dy * dy)
+   553→   553→      this._pinchZoom = this.zoom
+   554→   554→    }
+   555→   555→  }
+   556→   556→
+   557→   557→  private _onTouchMove = (e: TouchEvent) => {
+   558→   558→    if (e.touches.length === 1 && this.isDragging) {
+   559→   559→      e.preventDefault()
+   560→   560→      const t = e.touches[0]
+   561→   561→      const dx = t.clientX - this.lastMouse.x
+   562→   562→      const dy = t.clientY - this.lastMouse.y
+   563→   563→      this.panX += dx
+   564→   564→      this.panY += dy
+   565→   565→      this._panTargetX = this.panX
+   566→   566→      this._panTargetY = this.panY
+   567→   567→      this.lastMouse = { x: t.clientX, y: t.clientY }
+   568→   568→    } else if (e.touches.length === 2 && this._pinchDist) {
+   569→   569→      e.preventDefault()
+   570→   570→      const dx = e.touches[0].clientX - e.touches[1].clientX
+   571→   571→      const dy = e.touches[0].clientY - e.touches[1].clientY
+   572→   572→      const dist = Math.sqrt(dx * dx + dy * dy)
+   573→   573→      const factor = dist / this._pinchDist
+   574→   574→      const newZoom = Math.max(this.options.zoomMin, Math.min(this.options.zoomMax, this._pinchZoom * factor))
+   575→   575→      this._animateZoom(newZoom, this.width / 2, this.height / 2)
+   576→   576→    }
+   577→   577→  }
+   578→   578→
+   579→   579→  private _onTouchEnd = (e: TouchEvent) => {
+   580→   580→    if (e.changedTouches.length > 0 && this._touchStartPos) {
+   581→   581→      const t = e.changedTouches[0]
+   582→   582→      const rect = this.canvas!.getBoundingClientRect()
+   583→   583→      const ex = t.clientX - rect.left
+   584→   584→      const ey = t.clientY - rect.top
+   585→   585→
+   586→   586→      const distMoved = Math.sqrt((ex - this._touchStartPos.x) ** 2 + (ey - this._touchStartPos.y) ** 2)
+   587→   587→      const elapsed = performance.now() - this._touchStartTime
+   588→   588→
+   589→   589→      if (distMoved < this._TAP_MAX_DIST && elapsed < this._TAP_MAX_MS) {
+   590→   590→        const world = this.screenToWorld(ex, ey)
+   591→   591→        const node = this.findNodeAt(world.x, world.y, 12)
+   592→   592→        if (node) {
+   593→   593→          this.hoveredNode = node
+   594→   594→          this.selectedNode = node
+   595→   595→          node.targetRadius = node.radius * 1.2
+   596→   596→          setTimeout(() => {
+   597→   597→            if (this.selectedNode === node) node.targetRadius = node.radius
+   598→   598→          }, 220)
+   599→   599→          if (this.onNodeSelect) this.onNodeSelect(node.term)
+   600→   600→          if (this.onHoverChange) this.onHoverChange(node, e)
+   601→   601→        } else {
+   602→   602→          this.selectedNode = null
+   603→   603→          this.hoveredNode = null
+   604→   604→          if (this.onHoverChange) this.onHoverChange(null, null)
+   605→   605→        }
+   606→   606→      }
+   607→   607→    }
+   608→   608→
+   609→   609→    this.isDragging = false
+   610→   610→    this._pinchDist = null
+   611→   611→    this._touchStartPos = null
+   612→   612→    this.canvas!.style.cursor = 'grab'
+   613→   613→  }
+   614→   614→
+   615→   615→  private _bindEvents() {
+   616→   616→    if (!this.canvas) return
+   617→   617→    const add = (target: EventTarget, type: string, fn: EventListener, opts?: AddEventListenerOptions) => {
+   618→   618→      target.addEventListener(type, fn, opts)
+   619→   619→      this._boundListeners.push({ target, type, fn, opts })
+   620→   620→    }
+   621→   621→
+   622→   622→    add(window, 'resize', () => {
+   623→   623→      if (this._resizeTimer) clearTimeout(this._resizeTimer)
+   624→   624→      this._resizeTimer = setTimeout(() => this._handleResize(), 200)
+   625→   625→    })
+   626→   626→    add(this.canvas, 'mousemove', this._onMouseMove as EventListener)
+   627→   627→    add(this.canvas, 'mousedown', this._onMouseDown as EventListener)
+   628→   628→    add(this.canvas, 'mouseup', this._onMouseUp as EventListener)
+   629→   629→    add(this.canvas, 'mouseleave', this._onMouseLeave as EventListener)
+   630→   630→    add(this.canvas, 'wheel', this._onWheel as EventListener, { passive: false })
+   631→   631→    add(this.canvas, 'click', this._onClick as EventListener)
+   632→   632→    add(this.canvas, 'touchstart', this._onTouchStart as EventListener, { passive: false })
+   633→   633→    add(this.canvas, 'touchmove', this._onTouchMove as EventListener, { passive: false })
+   634→   634→    add(this.canvas, 'touchend', this._onTouchEnd as EventListener)
+   635→   635→
+   636→   636→    add(document, 'visibilitychange', () => {
+   637→   637→      if (document.hidden) {
+   638→   638→        this.stopAnimation()
+   639→   639→      } else {
+   640→   640→        this._lastTs = null
+   641→   641→        this._startAnimation()
+   642→   642→      }
+   643→   643→    })
+   644→   644→  }
+   645→   645→
+   646→   646→  private _handleResize() {
+   647→   647→    if (!this.canvas) return
+   648→   648→    const parent = this.canvas.parentElement
+   649→   649→    if (!parent) return
+   650→   650→    const rect = parent.getBoundingClientRect()
+   651→   651→
+   652→   652→    this.width = rect.width || 800
+   653→   653→    this.height = rect.height || 600
+   654→   654→    this.centerX = this.width / 2
+   655→   655→    this.centerY = this.height / 2
+   656→   656→    this.dpr = window.devicePixelRatio || 1
+   657→   657→
+   658→   658→    this.canvas.width = Math.round(this.width * this.dpr)
+   659→   659→    this.canvas.height = Math.round(this.height * this.dpr)
+   660→   660→    this.canvas.style.width = `${this.width}px`
+   661→   661→    this.canvas.style.height = `${this.height}px`
+   662→   662→
+   663→   663→    this._gridDirty = true
+   664→   664→    this._isDirty = true
+   665→   665→  }
+   666→   666→
+   667→   667→  private _animateZoom(newZoom: number, pivotX: number, pivotY: number) {
+   668→   668→    const scale = newZoom / this.zoom
+   669→   669→    this._panTargetX = pivotX - (pivotX - this.panX) * scale
+   670→   670→    this._panTargetY = pivotY - (pivotY - this.panY) * scale
+   671→   671→    this._zoomTarget = newZoom
+   672→   672→  }
+   673→   673→
+   674→   674→  private _startAnimation() {
+   675→   675→    if (this._isRunning) return
+   676→   676→
+   677→   677→    const tick = (ts: number) => {
+   678→   678→      const dt = this._lastTs ? Math.min((ts - this._lastTs) / 1000, 0.05) : 0.016
+   679→   679→      this._lastTs = ts
+   680→   680→
+   681→   681→      this.time += dt
+   682→   682→
+   683→   683→      const LERP = 0.18
+   684→   684→      const zooming = Math.abs(this._zoomTarget - this.zoom) > 0.0005
+   685→   685→      const panning = Math.abs(this._panTargetX - this.panX) > 0.1 || Math.abs(this._panTargetY - this.panY) > 0.1
+   686→   686→      if (zooming || panning) {
+   687→   687→        this.zoom += (this._zoomTarget - this.zoom) * LERP
+   688→   688→        this.panX += (this._panTargetX - this.panX) * LERP
+   689→   689→        this.panY += (this._panTargetY - this.panY) * LERP
+   690→   690→        this._isDirty = true
+   691→   691→      }
+   692→   692→
+   693→   693→      const hadMovement = this._simulatePhysics(dt * 60)
+   694→   694→      if (hadMovement) this._isDirty = true
+   695→   695→
+   696→   696→      // Skip render when idle (nothing changed for several frames)
+   697→   697→      const shouldRender = this._isDirty || this.hoveredNode || this.selectedNode || this._idleFrames < 3
+   698→   698→      if (shouldRender) {
+   699→   699→        this._render()
+   700→   700→        this._idleFrames = 0
+   701→   701→      } else {
+   702→   702→        this._idleFrames++
+   703→   703→      }
+   704→   704→
+   705→   705→      this._isDirty = false
+   706→   706→
+   707→   707→      // Full stop when truly idle — saves CPU/battery
+   708→   708→      if (this._idleFrames >= this._MAX_IDLE) {
+   709→   709→        this._isRunning = false
+   710→   710→        this.animationId = null
+   711→   711→        return
+   712→   712→      }
+   713→   713→
+   714→   714→      this.animationId = requestAnimationFrame(tick)
+   715→   715→    }
+   716→   716→
+   717→   717→    this._isRunning = true
+   718→   718→    this.animationId = requestAnimationFrame(tick)
+   719→   719→  }
+   720→   720→
+   721→   721→  private _rebuildGridCache() {
+   722→   722→    const w = this.width
+   723→   723→    const h = this.height
+   724→   724→    const cw = Math.round(w * this.dpr)
+   725→   725→    const ch = Math.round(h * this.dpr)
+   726→   726→
+   727→   727→    // Reuse existing canvas if dimensions haven't changed
+   728→   728→    if (!this._gridCanvas) {
+   729→   729→      this._gridCanvas = document.createElement('canvas')
+   730→   730→      this._gridCanvas.width = cw
+   731→   731→      this._gridCanvas.height = ch
+   732→   732→    } else if (this._gridCanvas.width !== cw || this._gridCanvas.height !== ch) {
+   733→   733→      this._gridCanvas.width = cw
+   734→   734→      this._gridCanvas.height = ch
+   735→   735→    }
+   736→   736→    // else: dimensions match, just repaint
+   737→   737→
+   738→   738→    const gc = this._gridCanvas.getContext('2d')!
+   739→   739→    gc.setTransform(this.dpr, 0, 0, this.dpr, 0, 0)
+   740→   740→    gc.fillStyle = this.theme.gridDot
+   741→   741→
+   742→   742→    const gap = 40
+   743→   743→    for (let x = gap; x < w; x += gap) {
+   744→   744→      for (let y = gap; y < h; y += gap) {
+   745→   745→        gc.beginPath()
+   746→   746→        gc.arc(x, y, 1.5, 0, Math.PI * 2)
+   747→   747→        gc.fill()
+   748→   748→      }
+   749→   749→    }
+   750→   750→
+   751→   751→    this._gridDirty = false
+   752→   752→  }
+   753→   753→
+   754→   754→  private _render() {
+   755→   755→    const ctx = this.ctx
+   756→   756→    if (!ctx || !this.canvas) return
+   757→   757→
+   758→   758→    // Track selection changes for sort optimization
+   759→   759→    const curSelId = this.selectedNode?.id ?? null
+   760→   760→    if (curSelId !== this._prevSelectedId) {
+   761→   761→      this._sortedDirty = true
+   762→   762→      this._prevSelectedId = curSelId
+   763→   763→    }
+   764→   764→
+   765→   765→    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0)
+   766→   766→
+   767→   767→    const bgGrad = ctx.createRadialGradient(this.centerX, this.centerY, 0, this.centerX, this.centerY, Math.max(this.width, this.height) * 0.7)
+   768→   768→    bgGrad.addColorStop(0, this.theme.bgGradientCenter)
+   769→   769→    bgGrad.addColorStop(1, this.theme.bg)
+   770→   770→    ctx.fillStyle = bgGrad
+   771→   771→    ctx.fillRect(0, 0, this.width, this.height)
+   772→   772→
+   773→   773→    if (this._gridDirty || !this._gridCanvas) this._rebuildGridCache()
+   774→   774→    if (this._gridCanvas) ctx.drawImage(this._gridCanvas, 0, 0, this.width, this.height)
+   775→   775→
+   776→   776→    ctx.save()
+   777→   777→    ctx.translate(this.panX, this.panY)
+   778→   778→    ctx.scale(this.zoom, this.zoom)
+   779→   779→
+   780→   780→    this._drawEdges(ctx)
+   781→   781→    this._drawNodes(ctx)
+   782→   782→
+   783→   783→    ctx.restore()
+   784→   784→  }
+   785→   785→
+   786→   786→  private _drawEdges(ctx: CanvasRenderingContext2D) {
+   787→   787→    const selected = this.selectedNode
+   788→   788→    const hovered = this.hoveredNode
+   789→   789→
+   790→   790→    this.edges.forEach((edge) => {
+   791→   791→      const src = this.nodeMap.get(edge.source)
+   792→   792→      const tgt = this.nodeMap.get(edge.target)
+   793→   793→      if (!src || !tgt || !src.visible || !tgt.visible) return
+   794→   794→
+   795→   795→      const srcActive = selected && (selected.id === src.id || selected.id === tgt.id)
+   796→   796→      const hovActive = hovered && (hovered.id === src.id || hovered.id === tgt.id)
+   797→   797→
+   798→   798→      let opacity: number
+   799→   799→      if (selected) {
+   800→   800→        opacity = srcActive ? 1.0 : 0.06
+   801→   801→      } else if (hovered) {
+   802→   802→        opacity = hovActive ? 0.85 : 0.12
+   803→   803→      } else {
+   804→   804→        opacity = 0.55
+   805→   805→      }
+   806→   806→
+   807→   807→      const dx = tgt.x - src.x
+   808→   808→      const dy = tgt.y - src.y
+   809→   809→      const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1)
+   810→   810→
+   811→   811→      const mx = (src.x + tgt.x) / 2
+   812→   812→      const my = (src.y + tgt.y) / 2
+   813→   813→      // Edge curve direction: since edges are bidirectional (no inherent direction),
+   814→   814→      // we use a deterministic but arbitrary ID-based comparison so that the curve bends
+   815→   815→      // consistently for each pair rather than randomly flipping.
+   816→   816→      const off = dist * 0.15
+   817→   817→      const dir = src.id < tgt.id ? 1 : -1
+   818→   818→      const cx = mx + (dy / dist) * off * dir
+   819→   819→      const cy = my - (dx / dist) * off * dir
+   820→   820→
+   821→   821→      const grad = ctx.createLinearGradient(src.x, src.y, tgt.x, tgt.y)
+   822→   822→      grad.addColorStop(0, this._hexToRgba(src.color, opacity))
+   823→   823→      grad.addColorStop(1, this._hexToRgba(tgt.color, opacity))
+   824→   824→
+   825→   825→      ctx.beginPath()
+   826→   826→      ctx.moveTo(src.x, src.y)
+   827→   827→      ctx.quadraticCurveTo(cx, cy, tgt.x, tgt.y)
+   828→   828→      ctx.strokeStyle = grad
+   829→   829→      ctx.lineWidth = srcActive || hovActive ? 2.5 : 1.5
+   830→   830→      ctx.lineCap = 'round'
+   831→   831→      ctx.setLineDash([])
+   832→   832→      ctx.stroke()
+   833→   833→
+   834→   834→      // Arrowhead
+   835→   835→      const tangX = tgt.x - cx
+   836→   836→      const tangY = tgt.y - cy
+   837→   837→      const angle = Math.atan2(tangY, tangX)
+   838→   838→      const arrowX = tgt.x - Math.cos(angle) * (tgt.radius + 6)
+   839→   839→      const arrowY = tgt.y - Math.sin(angle) * (tgt.radius + 6)
+   840→   840→
+   841→   841→      ctx.save()
+   842→   842→      ctx.translate(arrowX, arrowY)
+   843→   843→      ctx.rotate(angle)
+   844→   844→      ctx.beginPath()
+   845→   845→      ctx.moveTo(0, 0)
+   846→   846→      ctx.lineTo(-8, 4)
+   847→   847→      ctx.lineTo(-8, -4)
+   848→   848→      ctx.closePath()
+   849→   849→      ctx.fillStyle = this._hexToRgba(tgt.color, opacity)
+   850→   850→      ctx.fill()
+   851→   851→      ctx.restore()
+   852→   852→
+   853→   853→      // Quantum packets on active edges
+   854→   854→      if (srcActive || hovActive) {
+   855→   855→        ctx.save()
+   856→   856→        ctx.shadowBlur = 12
+   857→   857→        ctx.shadowColor = this._isDark ? '#60a5fa' : '#ffffff'
+   858→   858→
+   859→   859→        const packetColor = this._isDark ? '#93c5fd' : '#ffffff'
+   860→   860→        for (let i = 0; i < 3; i++) {
+   861→   861→          const t = ((this.time * 0.6 + i / 3)) % 1
+   862→   862→          const pos = this._bezierPoint(t, src.x, src.y, cx, cy, tgt.x, tgt.y)
+   863→   863→          const sz = 2 + Math.sin(this.time * 10 + i) * 0.5
+   864→   864→
+   865→   865→          ctx.beginPath()
+   866→   866→          ctx.arc(pos.x, pos.y, sz, 0, Math.PI * 2)
+   867→   867→          ctx.fillStyle = packetColor
+   868→   868→          ctx.fill()
+   869→   869→        }
+   870→   870→
+   871→   871→        ctx.restore()
+   872→   872→      }
+   873→   873→    })
+   874→   874→  }
+   875→   875→
+   876→   876→  private _drawNodes(ctx: CanvasRenderingContext2D) {
+   877→   877→    // Re-sort when selection changes — separate sorting from drawing to avoid mutation
+   878→   878→    if (this._sortedDirty) {
+   879→   879→      this._sortedNodes = this.nodes.slice()
+   880→   880→      // Move selected node to end for draw order (on top)
+   881→   881→      const selId = this.selectedNode?.id
+   882→   882→      if (selId) {
+   883→   883→        const selIdx = this._sortedNodes.findIndex((n) => n.id === selId)
+   884→   884→        if (selIdx !== -1 && selIdx !== this._sortedNodes.length - 1) {
+   885→   885→          const [selNode] = this._sortedNodes.splice(selIdx, 1)
+   886→   886→          this._sortedNodes.push(selNode)
+   887→   887→        }
+   888→   888→      }
+   889→   889→      this._sortedDirty = false
+   890→   890→    }
+   891→   891→
+   892→   892→    const nodes = this._sortedNodes
+   893→   893→    const selId = this.selectedNode?.id
+   894→   894→    const hovId = this.hoveredNode?.id
+   895→   895→    const hasSelection = !!selId
+   896→   896→    const fontSize = this.options.fontSize
+   897→   897→    const fontFamily = "'Plus Jakarta Sans', sans-serif"
+   898→   898→    const time = this.time
+   899→   899→    const isDark = this._isDark
+   900→   900→
+   901→   901→    for (let ni = 0; ni < nodes.length; ni++) {
+   902→   902→      const node = nodes[ni]
+   903→   903→      if (!node.visible) continue
+   904→   904→
+   905→   905→      const isSel = selId === node.id
+   906→   906→      const isHov = hovId === node.id
+   907→   907→      const dimmed = hasSelection && !isSel && !node.highlighted
+   908→   908→
+   909→   909→      let r = Math.max(1, node.currentRadius + (isSel ? Math.sin(time * 4) * 1.5 : 0))
+   910→   910→
+   911→   911→      // Outer scanning rings (selected)
+   912→   912→      if (isSel) {
+   913→   913→        ctx.save()
+   914→   914→        ctx.translate(node.x, node.y)
+   915→   915→        ctx.globalAlpha = 0.6
+   916→   916→        ctx.strokeStyle = node.color
+   917→   917→        ctx.lineWidth = 1.5
+   918→   918→        ctx.setLineDash([4, 8])
+   919→   919→        ctx.rotate(-time)
+   920→   920→        ctx.beginPath()
+   921→   921→        ctx.arc(0, 0, r + 8, 0, Math.PI * 2)
+   922→   922→        ctx.stroke()
+   923→   923→
+   924→   924→        ctx.setLineDash([])
+   925→   925→        ctx.lineWidth = 1
+   926→   926→        ctx.globalAlpha = 0.3 + Math.sin(time * 5) * 0.2
+   927→   927→        ctx.rotate(time * 2)
+   928→   928→        ctx.beginPath()
+   929→   929→        ctx.arc(0, 0, r + 4 + Math.sin(time * 3) * 3, 0, Math.PI * 2)
+   930→   930→        ctx.stroke()
+   931→   931→        ctx.restore()
+   932→   932→      }
+   933→   933→
+   934→   934→      // Highlighted ring (search result)
+   935→   935→      if (node.highlighted && !isSel) {
+   936→   936→        ctx.save()
+   937→   937→        ctx.globalAlpha = 0.7 + Math.sin(time * 6) * 0.2
+   938→   938→        ctx.strokeStyle = node.color
+   939→   939→        ctx.lineWidth = 2
+   940→   940→        ctx.setLineDash([3, 5])
+   941→   941→        ctx.beginPath()
+   942→   942→        ctx.arc(node.x, node.y, r + 5, 0, Math.PI * 2)
+   943→   943→        ctx.stroke()
+   944→   944→        ctx.setLineDash([])
+   945→   945→        ctx.restore()
+   946→   946→      }
+   947→   947→
+   948→   948→      // Shadow / glow
+   949→   949→      ctx.shadowColor = isSel || isHov ? node.color : 'rgba(0,0,0,0.08)'
+   950→   950→      ctx.shadowBlur = isSel || isHov ? 22 : 5
+   951→   951→
+   952→   952→      // Node body
+   953→   953→      ctx.beginPath()
+   954→   954→      ctx.arc(node.x, node.y, r, 0, Math.PI * 2)
+   955→   955→
+   956→   956→      const grad = ctx.createRadialGradient(node.x - r * 0.3, node.y - r * 0.3, r * 0.1, node.x, node.y, r)
+   957→   957→
+   958→   958→      if (isSel || isHov || node.highlighted) {
+   959→   959→        grad.addColorStop(0, isDark ? '#334155' : '#ffffff')
+   960→   960→        grad.addColorStop(0.4, this._hexToRgba(node.color, dimmed ? 0.3 : 1))
+   961→   961→        grad.addColorStop(1, this._darkenColor(node.color, 20))
+   962→   962→      } else {
+   963→   963→        grad.addColorStop(0, dimmed ? this.theme.dimmedBodyStart : this.theme.nodeBodyStart)
+   964→   964→        grad.addColorStop(1, dimmed ? this.theme.dimmedBodyEnd : this.theme.nodeBodyEnd)
+   965→   965→      }
+   966→   966→
+   967→   967→      ctx.globalAlpha = dimmed ? 0.35 : 1
+   968→   968→      ctx.fillStyle = grad
+   969→   969→      ctx.fill()
+   970→   970→      ctx.globalAlpha = 1
+   971→   971→      ctx.shadowBlur = 0
+   972→   972→
+   973→   973→      // Border
+   974→   974→      ctx.strokeStyle = isSel || isHov ? node.color : this.theme.nodeBorderDefault
+   975→   975→      ctx.lineWidth = isSel || isHov ? 2.5 : 1
+   976→   976→      ctx.stroke()
+   977→   977→
+   978→   978→      // Label (with cache)
+   979→   979→      const maxLabelPx = Math.round((r - 3) * 2)
+   980→   980→      const cacheKey = `${node.id}:${maxLabelPx}`
+   981→   981→      let label = this._labelCache.get(cacheKey)
+   982→   982→      if (label === undefined) {
+   983→   983→        ctx.font = `600 ${fontSize}px ${fontFamily}`
+   984→   984→        label = this._truncateLabel(ctx, node.term.name, maxLabelPx)
+   985→   985→        this._labelCache.set(cacheKey, label)
+   986→   986→      }
+   987→   987→      ctx.font = `600 ${fontSize}px ${fontFamily}`
+   988→   988→      ctx.textAlign = 'center'
+   989→   989→      ctx.textBaseline = 'middle'
+   990→   990→      ctx.fillStyle = isSel ? (isDark ? '#e8f0fe' : '#0f172a') : isHov ? node.color : this.theme.nodeLabelDefault
+   991→   991→
+   992→   992→      ctx.shadowColor = 'rgba(255,255,255,0.85)'
+   993→   993→      ctx.shadowBlur = 4
+   994→   994→      ctx.fillText(label, node.x, node.y)
+   995→   995→      ctx.shadowBlur = 0
+   996→   996→    }
+   997→   997→  }
+   998→   998→
+   999→   999→  private _prevSelectedId: string | null = null
+  1000→  1000→
+  1001→  1001→  private _truncateLabel(ctx: CanvasRenderingContext2D, text: string, maxPx: number): string {
+  1002→  1002→    if (ctx.measureText(text).width <= maxPx) return text
+  1003→  1003→    let t = text
+  1004→  1004→    while (t.length > 1 && ctx.measureText(t + '\u2026').width > maxPx) {
+  1005→  1005→      t = t.slice(0, -1)
+  1006→  1006→    }
+  1007→  1007→    return t + '\u2026'
+  1008→  1008→  }
+  1009→  1009→
+  1010→  1010→  private _bezierPoint(t: number, sx: number, sy: number, cx: number, cy: number, tx: number, ty: number) {
+  1011→  1011→    const u = 1 - t
+  1012→  1012→    return {
+  1013→  1013→      x: u * u * sx + 2 * u * t * cx + t * t * tx,
+  1014→  1014→      y: u * u * sy + 2 * u * t * cy + t * t * ty,
+  1015→  1015→    }
+  1016→  1016→  }
+  1017→  1017→
+  1018→  1018→  private _hexToRgba(hex: string, alpha = 1): string {
+  1019→  1019→    if (typeof hex !== 'string' || !hex.startsWith('#')) return `rgba(148,163,184,${alpha})`
+  1020→  1020→
+  1021→  1021→    let h = hex.slice(1)
+  1022→  1022→    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]
+  1023→  1023→    if (h.length !== 6) return `rgba(148,163,184,${alpha})`
+  1024→  1024→
+  1025→  1025→    const r = parseInt(h.slice(0, 2), 16)
+  1026→  1026→    const g = parseInt(h.slice(2, 4), 16)
+  1027→  1027→    const b = parseInt(h.slice(4, 6), 16)
+  1028→  1028→
+  1029→  1029→    if (isNaN(r) || isNaN(g) || isNaN(b)) return `rgba(148,163,184,${alpha})`
+  1030→  1030→    return `rgba(${r},${g},${b},${alpha})`
+  1031→  1031→  }
+  1032→  1032→
+  1033→  1033→  private _darkenColor(hex: string, percent: number): string {
+  1034→  1034→    if (typeof hex !== 'string' || !hex.startsWith('#')) return '#94a3b8'
+  1035→  1035→
+  1036→  1036→    let h = hex.slice(1)
+  1037→  1037→    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]
+  1038→  1038→    if (h.length !== 6) return '#94a3b8'
+  1039→  1039→
+  1040→  1040→    const amt = Math.round(2.55 * percent)
+  1041→  1041→    const num = parseInt(h, 16)
+  1042→  1042→    const R = Math.max(0, (num >> 16) - amt)
+  1043→  1043→    const G = Math.max(0, ((num >> 8) & 0x00ff) - amt)
+  1044→  1044→    const B = Math.max(0, (num & 0xff) - amt)
+  1045→  1045→    return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)
+  1046→  1046→  }
+  1047→  1047→}

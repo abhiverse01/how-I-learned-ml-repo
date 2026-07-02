@@ -1,293 +1,119 @@
-<p align="center">
-  <img src="assets/TitanML.png" alt="TitanML Banner" width="100%" />
-</p>
+# TitanML — AI Knowledge Nexus
 
-<h1 align="center">🧠 TitanML — AI Knowledge Nexus</h1>
+An interactive knowledge graph and visual encyclopedia for AI/ML concepts. Built with Next.js 16, featuring a canvas-based force-directed graph, architecture visualizer, and structured learning paths.
 
-<p align="center">
-  <b>An interactive physics-based knowledge graph for exploring Artificial Intelligence.</b>
-  <br/>
-  Transform static AI documentation into a living, explorable ecosystem.
-</p>
+## Features
 
-<p align="center">
+- **Interactive Knowledge Graph** — Canvas-rendered force-directed graph with physics simulation, spatial grid optimization, and smooth zoom/pan. Click nodes to explore term definitions, relationships, and code examples.
+- **Architecture Visualizer** — Visual flowcharts of AI architectures (RAG, Agentic, fine-tuning pipelines) with step-by-step breakdowns.
+- **Knowledge Paths** — Curated learning curricula with difficulty levels, from foundational ML concepts to advanced topics like multi-agent systems.
+- **Dark Mode** — Comprehensive theme system with 50+ CSS variables, smooth transitions, and canvas-aware dark rendering.
+- **Search** — Debounced full-text search across term names, descriptions, and tags with real-time graph highlighting.
+- **Add Terms** — Contribute new AI concepts directly through the in-app modal form.
+- **Keyboard Shortcuts** — `/` to focus search, `Escape` to close panels, `Alt+Arrow` for history navigation.
+- **Touch Support** — Pinch-zoom and tap-to-select on mobile devices.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Built With](https://img.shields.io/badge/Built%20With-Vanilla%20JS-yellow)
-![Rendering](https://img.shields.io/badge/Rendering-Canvas%20API-orange)
-![Physics](https://img.shields.io/badge/Engine-Force%20Directed-red)
-![Status](https://img.shields.io/badge/status-actively%20developed-brightgreen)
-![Creator](https://img.shields.io/badge/Created%20by-Abhishek%20Shah-purple)
+## Tech Stack
 
-</p>
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 (App Router, Turbopack) |
+| Language | TypeScript |
+| Styling | Custom CSS with CSS variables, `@property` animations |
+| State | Zustand (atomic selectors for render optimization) |
+| Graph Engine | Custom Canvas 2D — force-directed physics, spatial grid partitioning, lerp-smoothed camera |
+| Font | Plus Jakarta Sans (Google Fonts) |
 
-# 🌐 Live Demo
-
-> 🚀 Experience TitanML in action
-
-🔗 **Live Preview:**
-[https://abhiverse01.github.io/titanML/](https://abhiverse01.github.io/titanML/)
-
-# 🚀 What is TitanML?
-
-TitanML is a **zero-dependency, physics-powered AI knowledge graph engine**.
-
-Instead of consuming AI topics linearly, TitanML lets you:
-
-* 🌌 Explore AI concepts visually
-* 🔗 Understand relationships between models, methods, and paradigms
-* 🧠 Navigate Artificial Intelligence as a connected ecosystem
-* ⚡ Interact with a real-time force simulation
-
-No frameworks.
-No external libraries.
-Pure engineering.
-
-
-# ✨ Core Features
-
-## ⚛️ Force-Directed Graph Engine
-
-Custom-built physics simulation for natural node positioning:
-
-* Attraction & repulsion forces
-* Organic layout behaviour
-* Smooth transitions
-* Real-time simulation loop
-
-## 🎨 High-Performance Canvas Rendering
-
-Optimized **HTML5 Canvas engine** featuring:
-
-* Directional relationship arrows
-* Category-based gradient colouring
-* HiDPI / Retina optimization
-* Animated link flows
-* Smooth zoom & drag interactions
-* 
-## 🧩 Extensible Knowledge Architecture
-
-Add new AI concepts instantly via a simple data object.
-
-No rendering logic modification required.
-
-## 🔗 Deep Linking
-
-Each node is directly addressable via URL hash:
+## Project Structure
 
 ```
-#rag
-#transformers
-#llm
+src/
+├── app/
+│   ├── globals.css          # Base reset, loading screen, toast, panel/modal animations,
+│   │                         # scrollbar, code blocks, tooltip, accessibility
+│   ├── layout.tsx           # Root layout (meta, fonts, CSS imports)
+│   └── page.tsx             # Main page — LoadingScreen, Toast, Home (data orchestrator),
+│                             # AppContent (all UI split into prop-driven component)
+├── lib/
+│   └── graph-engine.ts      # Canvas knowledge graph engine (~1010 lines)
+│       ├── Physics: spatial grid O(n) neighbor lookup, repulsion/attraction/gravity
+│       ├── Rendering: radial gradient bg, cached dot grid, curved edges with arrows,
+│       │             quantum packet animations, gradient-filled nodes with glow
+│       ├── Interaction: mouse drag/pan, wheel zoom (lerp-smoothed), touch pinch-zoom
+│       ├── Performance: dirty flag + idle frame skipping with full rAF stop/wake,
+│       │              label truncation cache, sorted node draw order cache
+│       └── Dark mode: full theme swap via setDarkMode()
+├── store/
+│   └── useTitanMLStore.ts   # Zustand store — all app state and actions
+└── public/
+    ├── css/
+    │   ├── styles.css           # Main component styles + dark mode overrides
+    │   ├── architectureStyles.css  # Architecture gallery & flow visualizer
+    │   └── knowledgePath.css       # Knowledge path gallery & timeline
+    ├── data/
+    │   ├── graphData.json      # Categories & terms with relationships
+    │   ├── architecture.json   # Architecture definitions with steps
+    │   └── knowledgePath.json  # Learning paths with steps/subpaths
+    └── assets/
 ```
 
-Perfect for sharing specific AI concepts.
+## Architecture Decisions
 
-## 🧭 Navigation History (SPA Support)
+### Render Optimization
+- **Atomic Zustand selectors** — Each UI section subscribes to only the state slices it needs, preventing unnecessary re-renders when unrelated state changes.
+- **AppContent extraction** — The main UI is a separate function component from the data-loading orchestrator, allowing React to skip the entire AppContent tree during loading.
+- **useMemo for derived data** — `relatedTerms`, `selectedTermCategory`, and `currentArch` are memoized to avoid recomputation on every render.
+- **Graph engine idle stopping** — The canvas render loop fully stops after 60 idle frames (~1s at 60fps), then wakes on user interaction via `_wake()`. Saves CPU and battery.
+- **Sorted node draw cache** — Node sort order (for z-ordering) is cached and only recomputed when selection changes via `_sortedDirty` flag.
+- **Label truncation cache** — Truncated labels are cached by `nodeId:maxLabelPx` and cleared on data reload.
 
-* Back / Forward browser navigation
-* URL state persistence
-* Shareable graph states
+### Memory Management
+- **Proper cleanup** — Graph engine `destroy()` clears all arrays, maps, caches, event listeners, and canvas references. `ResizeObserver` is disconnected on unmount.
+- **No dead code** — Unused files (`db.ts`, `utils.ts`, `api/route.ts`, `components/ui/`, `hooks/`) removed. Unused `codeBlockRef` eliminated.
+- **Event listener tracking** — Graph engine tracks all bound listeners in `_boundListeners[]` for complete cleanup.
 
-## 📱 Responsive & Accessible
+### Animation System
+- **Loading screen** — Dual-ring spinner with CSS `@keyframes`, emoji rotation, fade-in on mount via `loaderFadeIn` keyframe, and fade-out + scale transition on data load. Loader is conditionally rendered (removed from DOM after fade-out).
+- **Toast** — Spring-based entrance (`translateY + scale + opacity`) and smooth exit animation with 300ms crossfade.
+- **View transitions** — Architecture and knowledge path views conditionally render with `key` prop, triggering `viewFadeIn` animation on each navigation.
+- **Panel** — Slides in with spring transition from `styles.css`. Panel sections stagger-animate on open.
+- **Modal** — Overlay fades in, modal scales up with spring. Form fields stagger-animate.
+- **Interactive elements** — Category/filter items translate on hover, buttons scale on press, related terms lift with shadow.
 
-Modern glassmorphism UI optimised for:
+### Bug Fixes (Godmode Audit)
+- **L1: Hydration mismatch** — `suppressHydrationWarning` on both `<html>` and `<body>` to handle browser extension attribute injection.
+- **L1: _drawNodes array mutation** — Node drawing uses a separate `_sortedNodes` copy instead of mutating `this.nodes` during iteration.
+- **L2: Critical `getTerm` ReferenceError** — `graph.onNodeSelect` callback was calling undefined `getTerm()`. Fixed to use `useTitanMLStore.getState().terms.find()`.
+- **L2: Loading screen double-trigger** — `loaderFading` state was set but never applied to className. Now conditionally renders the fade-out loader div.
+- **L2: Canvas render loop** — Added full rAF stop after 60 idle frames + `_wake()` mechanism on all interaction handlers.
+- **L2: Label truncation cache** — `_labelCache` now cleared in `loadData()` to prevent stale entries after data reload.
+- **L2: Panel/Modal entrance animations** — Added staggered section animations and form field animations.
+- **L3: Visitor counter** — Repositioned to bottom-right corner, subtler opacity.
+- **L3: Code block** — Removed unused `codeBlockRef`. Copy button is fully inline React state. Added `padding-top: 40px` for button clearance.
+- **L3: View transitions** — Architecture and knowledge path views now conditionally render with keys, triggering proper `viewFadeIn` animation each time.
+- **L3: Accessibility** — Added `:focus-visible` styles and `:focus:not(:focus-visible)` reset.
+- **L3: Dead code** — Removed `db.ts`, `utils.ts`, `api/route.ts`, `components/ui/`, `hooks/`.
 
-* Desktop
-* Tablet
-* Mobile
-
-Keyboard-first navigation is supported.
-
-# 🏗 Architecture
-
-TitanML follows a modular separation of concerns.
-
-```
-titanML/
-│
-├── index.html              # Application shell
-│
-├── assets/
-│   ├── TitanML.png         # Banner
-│   └── preview.gif         # Demo animation
-│
-├── css/
-│   └── styles.css          # Design system & UI styling
-│
-└── js/
-    ├── data.js             # Knowledge base (extensible)
-    ├── graph.js            # Physics engine & canvas renderer
-    └── app.js              # State management & UI logic
-```
-
-### Design Philosophy
-
-* Single Responsibility per module
-* No framework lock-in
-* Maximum performance
-* Educational clarity
-* Scalable knowledge abstraction
-
-# ⚡ Quick Start
-
-No installation required.
-
-## 1️⃣ Clone the repository
+## Getting Started
 
 ```bash
-git clone https://github.com/abhiverse01/titanML.git
-cd titanML
+# Install dependencies
+npm install
+
+# Development server
+npm run dev
+
+# Production build
+npm run build
+npm start
 ```
 
-## 2️⃣ Run the app
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-Simply open:
+## Credits
 
-```
-index.html
-```
+Created by **Abhishek Shah** — [Portfolio](https://abhiverse01.github.io) | [Email](mailto:abhishek.aimarine@gmail.com)
 
-Or serve locally:
+## License
 
-```bash
-python -m http.server
-```
-
-Then visit:
-
-```
-http://localhost:8000
-```
-
----
-
-# 🧠 Adding New AI Concepts
-
-All knowledge is stored in:
-
-```
-js/data.js
-```
-
-Example:
-
-```javascript
-{
-    id: "quantum-ml",
-    name: "Quantum ML",
-    category: "training",
-    definition: "Machine learning methods applied to quantum computing systems.",
-    related: ["transformers", "llm"]
-}
-```
-
-That’s it.
-
-The engine automatically renders:
-
-* The node
-* Its relationships
-* Physics interactions
-* Visual styling
-
-# 🎯 Roadmap
-
-## 🔹 Phase 1 — Foundation (Complete)
-
-* Physics engine
-* Canvas renderer
-* Deep linking
-* Modular architecture
-
-## 🔹 Phase 2 — Intelligence Layer
-
-* Search ranking system
-* Node clustering
-* Concept difficulty layers
-* Category filters
-
-## 🔹 Phase 3 — AI-Enhanced Graph
-
-* Embedding-based relationship generation
-* Concept recommendation engine
-* Graph-based learning mode
-
-## 🔹 Phase 4 — Ecosystem Expansion
-
-* Plugin architecture
-* Multi-domain knowledge graphs
-* Research visualisation tools
-
-# 🤝 Contributing
-
-Contributions are welcome.
-
-## How to Contribute
-
-1. Fork the repository
-2. Create a new branch
-3. Commit your changes
-4. Open a Pull Request
-
-### Contribution Ideas
-
-* Add new AI domains
-* Improve physics tuning
-* Enhance UI/UX polish
-* Optimize rendering performance
-* Build learning overlays
-
-# 🛠 Tech Stack
-
-| Layer        | Technology                   |
-| ------------ | ---------------------------- |
-| Engine       | Vanilla JavaScript (ES6+)    |
-| Rendering    | HTML5 Canvas                 |
-| Styling      | CSS Variables + Flexbox/Grid |
-| Architecture | Modular ES Structure         |
-| Fonts        | Plus Jakarta Sans            |
-
-
-# 🧭 Vision
-
-TitanML is designed to become:
-
-> 📚 A visual atlas of Artificial Intelligence.
-
-Not just documentation.
-Not just a graph.
-
-But a **cognitive interface for exploring intelligence itself.**
-
-Future direction includes:
-
-* AI research mapping
-* Learning path generation
-* Curriculum visualization
-* Concept evolution timelines
-
-# 👨‍💻 Creator
-
-**Abhishek Shah**
-AI Engineer • Systems Thinker • Builder
-
-🌐 Portfolio
-[https://abhiverse01.github.io](https://abhiverse01.github.io)
-
-💼 LinkedIn
-[https://www.linkedin.com/in/theabhishekshah/](https://www.linkedin.com/in/theabhishekshah/)
-
-📧 Email
-[abhishek.aimarine@gmail.com](mailto:abhishek.aimarine@gmail.com)
-
-# 📄 License
-
-<p align="center">
-  This project is licensed under the MIT License.
-  <b>Built with precision, curiosity, and deep respect for intelligence.</b>
-  <br/>
-  If you found this project valuable, consider ⭐ starring the repository.
-</p>
-
+All rights reserved.
